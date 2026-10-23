@@ -24,7 +24,7 @@ Aplikace má dvě části:
    - **Pravé tlačítko (nebo Ctrl+klik):** menu s běžícím projektem, Poznámka…, Stop, seznamem projektů (naposledy použité první) pro spuštění, „Otevřít Memento“, Ukončit
 2. **Hlavní okno** – správa projektů, záznamů a export
 
-Aplikace se nezobrazuje v Docku (`LSUIElement = YES`), hlavní okno se otevírá z menu baru.
+Aplikace se nezobrazuje v Docku (`LSUIElement = YES`), hlavní okno se otevírá z ikony v liště. Po dobu otevřeného hlavního okna je aplikace běžná (ikona v Docku, `.regular`) a po jeho zavření se vrací do režimu bez ikony; v režimu bez ikony totiž po přepnutí plochy a zpět mizela systémová horní lišta.
 
 ## Datový model
 

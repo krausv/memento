@@ -154,13 +154,24 @@ final class StatusItemController: NSObject {
                 .environment(timer)
                 .modelContainer(container)
                 .frame(minWidth: 760, minHeight: 480)
-            let window = NSWindow(contentViewController: NSHostingController(rootView: root))
+            let host = NSHostingController(rootView: root)
+            // Okno nesmí sledovat ideální velikost obsahu (Nastavení má ~1400 pt), jinak by se roztahovalo.
+            host.sizingOptions = []
+            let window = NSWindow(contentViewController: host)
+            window.contentMinSize = NSSize(width: 760, height: 480)
             window.title = "Memento"
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 900, height: 580))
             window.setFrameAutosaveName("MementoMainWindow")
+            // Okno aplikace bez ikony v Docku (accessory) se po přepnutí plochy chovalo špatně:
+            // zmizela systémová horní lišta. Po dobu otevřeného okna je aplikace proto běžná
+            // a po zavření se vrací do režimu bez ikony v Docku.
+            NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { _ in
+                MainActor.assumeIsolated { NSApp.setActivationPolicy(.accessory) }
+            }
             mainWindow = window
         }
+        NSApp.setActivationPolicy(.regular)
         present(mainWindow)
     }
 
