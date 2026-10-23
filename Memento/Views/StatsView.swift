@@ -198,6 +198,10 @@ struct StatsView: View {
                 card("Cíl fakturace po měsících") {
                     ForEach(withTarget) { project in
                         yearTargetChart(project, year: year, until: currentMonth, rounding: rounding)
+                        if year == currentMonth.year,
+                           let status = project.targetStatus(now: timer.now, rounding: rounding, month: currentMonth) {
+                            forecastView(project, status)
+                        }
                     }
                     Text("Částka se počítá se zaokrouhlením z exportu.").font(.caption).foregroundStyle(.secondary)
                 }
@@ -207,9 +211,10 @@ struct StatsView: View {
                     ForEach(withTarget) { project in
                         if let status = project.targetStatus(now: timer.now, rounding: rounding, month: month) {
                             targetRow(project, status)
+                            if month == ReportMonth(containing: timer.now) { forecastView(project, status) }
                         }
                     }
-                    Text("Cíl je měsíční, proto se u týdne hodnotí měsíc zvoleného týdne. Částka se počítá se zaokrouhlením z exportu.")
+                    Text("Cíl je měsíční, proto se u týdne hodnotí měsíc zvoleného týdne. Částka se počítá se zaokrouhlením z exportu. Odhad reálnosti vychází z pracovních dnů a doby v Nastavení › Připomínky.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -232,6 +237,41 @@ struct StatsView: View {
             Text("\(CzFormat.money(status.amount, currency: project.currency)) z \(CzFormat.money(status.target, currency: project.currency))")
                 .font(.caption).foregroundStyle(.secondary)
         }
+    }
+
+    /// Zbývající hodiny a odhad, jestli je cíl v aktuálním měsíci reálný.
+    @ViewBuilder
+    private func forecastView(_ project: Project, _ status: TargetStatus) -> some View {
+        if let forecast = TargetForecast.compute(status: status, hourlyRate: project.hourlyRate,
+                                                 now: timer.now, schedule: AppSettings.reminders) {
+            let (label, tint): (String, Color) = switch forecast.verdict {
+            case .reached: ("cíl splněn", .green)
+            case .realistic: ("reálné", .green)
+            case .tight: ("napjaté", .orange)
+            case .unrealistic: ("nereálné", .red)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    if forecast.verdict != .reached {
+                        Text("Zbývá \(CzFormat.hours(seconds: forecast.remainingSeconds)) do cíle")
+                    }
+                    Text(label).fontWeight(.semibold).foregroundStyle(tint)
+                }
+                .font(.caption)
+                if forecast.verdict != .reached {
+                    Text(capacityText(forecast)).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private func capacityText(_ forecast: TargetForecast) -> String {
+        guard let perDay = forecast.requiredPerDaySeconds else {
+            return "Do konce měsíce už nezbývá žádná pracovní doba."
+        }
+        let days = forecast.workDaysLeft
+        let noun = days == 1 ? "pracovní den" : (2...4).contains(days) ? "pracovní dny" : "pracovních dnů"
+        return "Do konce měsíce \(days) \(noun) (kapacita \(CzFormat.hours(seconds: forecast.capacitySeconds))), potřeba průměrně \(CzFormat.hours(seconds: perDay)) denně."
     }
 
     private struct MonthAmount: Identifiable {

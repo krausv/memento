@@ -23,7 +23,7 @@ struct MainWindow: View {
         }
     }
 
-    @State private var selection: Section? = .projects
+    @State private var selection: Section? = .stats
 
     var body: some View {
         NavigationSplitView {
@@ -32,7 +32,7 @@ struct MainWindow: View {
             }
             .navigationSplitViewColumnWidth(min: 150, ideal: 170)
         } detail: {
-            switch selection ?? .projects {
+            switch selection ?? .stats {
             case .projects: ProjectsView()
             case .entries: EntriesView()
             case .stats: StatsView()
