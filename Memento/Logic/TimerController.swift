@@ -69,11 +69,20 @@ final class TimerController {
         return entries.first { $0.project.map { !$0.isArchived } ?? false }
     }
 
-    /// Naváže na poslední záznam: stejný projekt i poznámka.
+    /// Starší záznam už je jiná práce – spustí se stejný projekt, ale bez poznámky.
+    static let resumeWindow: TimeInterval = 2 * 3600
+
+    /// Je poslední záznam dost čerstvý, aby se z něj převzala poznámka?
+    func continuesNote(of entry: TimeEntry) -> Bool {
+        guard let end = entry.end else { return false }
+        return clock().timeIntervalSince(end) <= Self.resumeWindow
+    }
+
+    /// Spustí projekt posledního záznamu; poznámku převezme jen pokud skončil před méně než dvěma hodinami.
     @discardableResult
     func resumeLast() throws -> TimeEntry? {
         guard let last = lastResumableEntry(), let project = last.project else { return nil }
-        return try start(project, note: last.note)
+        return try start(project, note: continuesNote(of: last) ? last.note : nil)
     }
 
     func stop() throws {

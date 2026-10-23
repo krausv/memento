@@ -94,6 +94,25 @@ final class TimerControllerTests: XCTestCase {
         _ = (first, second)
     }
 
+    func testResumeLastDropsNoteWhenLastEntryIsOlderThanTwoHours() throws {
+        let controller = makeController()
+        let a = makeProject("A")
+        try controller.start(a, note: "• staré")
+        time.addTimeInterval(60)
+        try controller.stop()
+
+        time.addTimeInterval(2 * 3600)
+        let fresh = try XCTUnwrap(try controller.resumeLast())
+        XCTAssertEqual(fresh.note, "• staré", "přesně dvě hodiny je ještě navázání")
+        time.addTimeInterval(60)
+        try controller.stop()
+
+        time.addTimeInterval(2 * 3600 + 1)
+        let stale = try XCTUnwrap(try controller.resumeLast())
+        XCTAssertTrue(stale.project === a)
+        XCTAssertNil(stale.note)
+    }
+
     func testResumeLastSkipsArchivedProject() throws {
         let controller = makeController()
         let a = makeProject("A"), b = makeProject("B")

@@ -76,7 +76,10 @@ final class StatusItemController: NSObject {
         } else {
             menu.addItem(label("Časovač neběží"))
             if let last = timer.lastResumableEntry(), let project = last.project {
-                menu.addItem(ActionItem("Pokračovat: " + Self.summary(of: last, in: project)) { [weak self] in
+                let title = timer.continuesNote(of: last)
+                    ? "Pokračovat: " + Self.summary(of: last, in: project)
+                    : "Spustit: " + project.name
+                menu.addItem(ActionItem(title) { [weak self] in
                     _ = try? self?.timer.resumeLast()
                 })
             }
