@@ -8,6 +8,7 @@ struct MementoApp: App {
     private let statusItem: StatusItemController?
     private let budgetMonitor: BudgetMonitor?
     private let reminders: ReminderScheduler?
+    private let autoBackup: AutoBackupScheduler?
 
     init() {
         // Testy běží v hostitelské aplikaci – nesmí sahat na uživatelská data ani na lištu.
@@ -27,6 +28,7 @@ struct MementoApp: App {
         if isTesting {
             budgetMonitor = nil
             reminders = nil
+            autoBackup = nil
         } else {
             Notifications.configure()
             let monitor = MainActor.assumeIsolated {
@@ -57,6 +59,14 @@ struct MementoApp: App {
                 }
             }
             reminders = scheduler
+
+            let backups = MainActor.assumeIsolated {
+                AutoBackupScheduler(context: container.mainContext) {
+                    Notifications.post(title: "Automatická záloha selhala", body: $0)
+                }
+            }
+            MainActor.assumeIsolated { backups.start() }
+            autoBackup = backups
         }
         statusItem = isTesting ? nil : MainActor.assumeIsolated { StatusItemController(timer: timer, container: container) }
     }

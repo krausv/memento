@@ -6,6 +6,9 @@ enum SettingsKey {
     static let supplierName = "supplierName"
     static let supplierIco = "supplierIco"
     static let reminders = "reminderSettings"
+    static let autoBackup = "autoBackupSettings"
+    static let lastAutoBackup = "autoBackupLast"
+    static let autoBackupError = "autoBackupError"
 }
 
 enum AppSettings {
@@ -25,6 +28,31 @@ enum AppSettings {
                 .flatMap { try? JSONDecoder().decode(ReminderSettings.self, from: $0) } ?? ReminderSettings()
         }
         set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: SettingsKey.reminders) }
+    }
+
+    static func autoBackup(_ defaults: UserDefaults = .standard) -> AutoBackupSettings {
+        defaults.data(forKey: SettingsKey.autoBackup)
+            .flatMap { try? JSONDecoder().decode(AutoBackupSettings.self, from: $0) } ?? AutoBackupSettings()
+    }
+
+    static func setAutoBackup(_ settings: AutoBackupSettings, _ defaults: UserDefaults = .standard) {
+        defaults.set(try? JSONEncoder().encode(settings), forKey: SettingsKey.autoBackup)
+    }
+
+    static func lastAutoBackup(_ defaults: UserDefaults = .standard) -> Date? {
+        let value = defaults.double(forKey: SettingsKey.lastAutoBackup)
+        return value > 0 ? Date(timeIntervalSince1970: value) : nil
+    }
+
+    static func lastAutoBackupError(_ defaults: UserDefaults = .standard) -> String? {
+        defaults.string(forKey: SettingsKey.autoBackupError)
+    }
+
+    /// Úspěch (`date`) smaže poslední chybu, selhání (`error`) ponechá čas poslední úspěšné zálohy.
+    static func recordAutoBackup(date: Date?, error: String?, _ defaults: UserDefaults = .standard) {
+        if let date { defaults.set(date.timeIntervalSince1970, forKey: SettingsKey.lastAutoBackup) }
+        if let error { defaults.set(error, forKey: SettingsKey.autoBackupError) }
+        else { defaults.removeObject(forKey: SettingsKey.autoBackupError) }
     }
 
     static var supplierName: String? { nonEmpty(SettingsKey.supplierName) }

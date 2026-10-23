@@ -14,6 +14,9 @@ struct SettingsView: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var launchError: String?
     @State private var reminders = AppSettings.reminders
+    @State private var autoBackup = AppSettings.autoBackup()
+    @State private var lastAutoBackup = AppSettings.lastAutoBackup()
+    @State private var autoBackupError = AppSettings.lastAutoBackupError()
     @State private var pendingBackup: Backup?
     @State private var backupMessage: String?
     @State private var backupFailed = false
@@ -47,6 +50,7 @@ struct SettingsView: View {
                     Text(backupMessage).foregroundStyle(backupFailed ? .red : .secondary)
                 }
             }
+            autoBackupSection
             Section("Systém") {
                 Toggle("Spustit při přihlášení", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { setLaunchAtLogin(launchAtLogin) }
@@ -120,6 +124,78 @@ struct SettingsView: View {
                 reminders[keyPath: keyPath] = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
             }
         )
+    }
+
+    private var autoBackupSection: some View {
+        Section("Automatická záloha") {
+            Toggle("Zálohovat automaticky do složky", isOn: Binding(
+                get: { autoBackup.enabled },
+                set: { setAutoBackupEnabled($0) }
+            ))
+            if autoBackup.enabled || autoBackup.folderPath != nil {
+                LabeledContent("Složka") {
+                    HStack {
+                        Text(autoBackup.folderPath ?? "není zvolená")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Button("Zvolit…") { chooseAutoBackupFolder() }
+                    }
+                }
+                Picker("Četnost", selection: $autoBackup.frequency) {
+                    ForEach(AutoBackupFrequency.allCases) { Text($0.title).tag($0) }
+                }
+                Stepper("Ponechat posledních \(autoBackup.keepCount) záloh", value: $autoBackup.keepCount, in: 1...100)
+                HStack {
+                    Button("Zálohovat teď", action: runAutoBackupNow)
+                        .disabled(autoBackup.folderPath == nil)
+                    if let lastAutoBackup {
+                        Text("Poslední záloha: \(CzFormat.date(lastAutoBackup)) \(CzFormat.time(lastAutoBackup))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if let autoBackupError {
+                    Text(autoBackupError).font(.caption).foregroundStyle(.red)
+                }
+                Text("Kontrola probíhá po spuštění, po probuzení Macu a jednou za hodinu. Mažou se jen soubory memento-auto-*.json vytvořené touto funkcí.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .onChange(of: autoBackup) { AppSettings.setAutoBackup(autoBackup) }
+    }
+
+    private func setAutoBackupEnabled(_ enabled: Bool) {
+        autoBackup.enabled = enabled
+        guard enabled else { return }
+        Notifications.requestAuthorization()
+        if autoBackup.folderPath == nil { chooseAutoBackupFolder() }
+        // Bez složky by zapnutí nic nedělalo.
+        if autoBackup.folderPath == nil { autoBackup.enabled = false }
+    }
+
+    private func chooseAutoBackupFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.prompt = "Zvolit"
+        panel.message = "Vyber složku, do které se budou ukládat automatické zálohy."
+        NSApp.activate()
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        autoBackup.folderPath = url.path
+    }
+
+    private func runAutoBackupNow() {
+        AppSettings.setAutoBackup(autoBackup)
+        let now = Date()
+        do {
+            try AutoBackupService.run(context: context, settings: autoBackup, now: now)
+            AppSettings.recordAutoBackup(date: now, error: nil)
+        } catch {
+            AppSettings.recordAutoBackup(date: nil, error: error.localizedDescription)
+        }
+        lastAutoBackup = AppSettings.lastAutoBackup()
+        autoBackupError = AppSettings.lastAutoBackupError()
     }
 
     private func exportBackup() {
