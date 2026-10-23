@@ -1,5 +1,4 @@
 import AppKit
-import os
 import Observation
 import SwiftData
 import SwiftUI
@@ -57,7 +56,6 @@ final class StatusItemController: NSObject {
 
     @objc private func clicked() {
         let event = NSApp.currentEvent
-        Logger(subsystem: "cz.memento.app", category: "click").debug("klik type=\(event?.type.rawValue ?? 0) count=\(event?.clickCount ?? 0)")
         if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
             showMenu()
         } else {
