@@ -33,6 +33,7 @@ struct SettingsView: View {
                 TextField("Jméno dodavatele", text: $supplierName)
                 TextField("IČO dodavatele", text: $supplierIco)
             }
+            TagManagerSection()
             Section("Záloha") {
                 HStack {
                     Button("Exportovat zálohu…", action: exportBackup)

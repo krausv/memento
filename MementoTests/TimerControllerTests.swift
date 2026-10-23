@@ -9,7 +9,7 @@ final class TimerControllerTests: XCTestCase {
 
     override func setUp() async throws {
         container = try ModelContainer(
-            for: Project.self, TimeEntry.self,
+            for: Project.self, TimeEntry.self, Tag.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
     }
@@ -126,5 +126,23 @@ final class TimerControllerTests: XCTestCase {
         let resumed = try XCTUnwrap(try controller.resumeLast())
         XCTAssertTrue(resumed.project === a)
         XCTAssertEqual(resumed.note, "• A")
+    }
+
+    func testResumeCopiesTagsOnlyForFreshEntry() throws {
+        let controller = makeController()
+        let a = makeProject("A")
+        let tag = Tag(name: "Schůzka")
+        container.mainContext.insert(tag)
+        try controller.start(a, note: "• x", tags: [tag])
+        time.addTimeInterval(60)
+        try controller.stop()
+
+        let fresh = try XCTUnwrap(try controller.resumeLast())
+        XCTAssertEqual(fresh.tags.map(\.name), ["Schůzka"])
+        time.addTimeInterval(60)
+        try controller.stop()
+
+        time.addTimeInterval(3 * 3600)
+        XCTAssertTrue(try XCTUnwrap(try controller.resumeLast()).tags.isEmpty)
     }
 }

@@ -10,11 +10,13 @@ struct QuickNoteView: View {
     let close: () -> Void
 
     @State private var note: String
+    @State private var tags: [Tag]
 
     init(entry: TimeEntry, close: @escaping () -> Void) {
         self.entry = entry
         self.close = close
         _note = State(initialValue: entry.note ?? "")
+        _tags = State(initialValue: entry.tags)
     }
 
     var body: some View {
@@ -31,6 +33,7 @@ struct QuickNoteView: View {
             BulletTextEditor(text: $note, autofocus: true)
                 .frame(minHeight: 200)
                 .glassEffect(.regular, in: .rect(cornerRadius: 14))
+            TagPicker(selected: $tags)
             GlassEffectContainer(spacing: 8) {
                 HStack(spacing: 8) {
                     Spacer()
@@ -51,6 +54,7 @@ struct QuickNoteView: View {
 
     private func save() {
         entry.note = BulletText.clean(note)
+        entry.tags = tags
         try? context.save()
         close()
     }

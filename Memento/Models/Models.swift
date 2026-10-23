@@ -31,6 +31,8 @@ final class TimeEntry {
     /// Volný popis práce; nahrazuje úkoly.
     var note: String?
     var project: Project?
+    /// Štítky napříč projekty; vztah M:N, smazání štítku ho jen odebere ze záznamů.
+    var tags: [Tag] = []
 
     init(project: Project, start: Date, end: Date? = nil, note: String? = nil) {
         self.project = project
@@ -46,4 +48,23 @@ final class TimeEntry {
     }
 
     var duration: TimeInterval { duration() }
+}
+
+@Model
+final class Tag {
+    var id: UUID = UUID()
+    var name: String = ""
+    /// Klíč do `TagColor`.
+    var colorName: String = TagColor.blue.rawValue
+    var createdAt: Date = Date()
+
+    @Relationship(inverse: \TimeEntry.tags)
+    var entries: [TimeEntry] = []
+
+    init(name: String, color: TagColor = .blue) {
+        self.name = name
+        self.colorName = color.rawValue
+    }
+
+    var color: TagColor { TagColor(rawValue: colorName) ?? .blue }
 }

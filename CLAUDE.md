@@ -21,7 +21,7 @@ Lint není nastaven.
 
 ## Architektura
 
-- `Models/Models.swift` – SwiftData modely `Project` → `TimeEntry` (cascade mazání). Žádné úkoly: popis práce je volná `TimeEntry.note`. `TimeEntry.end == nil` znamená běžící záznam.
+- `Models/Models.swift` – SwiftData modely `Project` → `TimeEntry` (cascade mazání) a `Tag` (M:N se záznamem). Žádné úkoly: popis práce je volná `TimeEntry.note`. `TimeEntry.end == nil` znamená běžící záznam.
 - `Logic/` – čistá logika oddělená od UI (hlavní testovaná vrstva):
   - `TimerController` (`@MainActor @Observable`) – start/stop/přepnutí; běžící záznam se ukládá hned při startu, takže přežije restart. Čas injektovatelný přes `clock` pro testy.
   - `ReportBuilder` – z záznamů vytvoří čistou strukturu výkazu (hodiny, částky, zaokrouhlení). Záznam patří do měsíce, ve kterém **začal**.

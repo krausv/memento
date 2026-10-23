@@ -46,13 +46,14 @@ final class TimerController {
     }
 
     @discardableResult
-    func start(_ project: Project, note: String? = nil) throws -> TimeEntry {
+    func start(_ project: Project, note: String? = nil, tags: [Tag] = []) throws -> TimeEntry {
         let moment = clock()
         if let running = runningEntry {
             running.end = max(moment, running.start)
         }
         let entry = TimeEntry(project: project, start: moment, note: note)
         context.insert(entry)
+        entry.tags = tags
         try context.save()
         refresh()
         return entry
@@ -78,11 +79,12 @@ final class TimerController {
         return clock().timeIntervalSince(end) <= Self.resumeWindow
     }
 
-    /// Spustí projekt posledního záznamu; poznámku převezme jen pokud skončil před méně než dvěma hodinami.
+    /// Spustí projekt posledního záznamu; poznámku a štítky převezme jen pokud skončil před méně než dvěma hodinami.
     @discardableResult
     func resumeLast() throws -> TimeEntry? {
         guard let last = lastResumableEntry(), let project = last.project else { return nil }
-        return try start(project, note: continuesNote(of: last) ? last.note : nil)
+        let fresh = continuesNote(of: last)
+        return try start(project, note: fresh ? last.note : nil, tags: fresh ? last.tags : [])
     }
 
     func stop() throws {

@@ -17,12 +17,30 @@ struct Backup: Codable, Equatable {
         var createdAt: Date
     }
 
+    struct TagData: Codable, Equatable {
+        var id: UUID
+        var name: String
+        var colorName: String
+        var createdAt: Date
+    }
+
     struct EntryData: Codable, Equatable {
         var id: UUID
         var projectID: UUID
         var start: Date
         var end: Date?
         var note: String?
+        /// Volitelné, aby se dalo načíst i zálohy vytvořené před zavedením štítků.
+        var tagIDs: [UUID]?
+
+        init(id: UUID, projectID: UUID, start: Date, end: Date?, note: String?, tagIDs: [UUID]? = nil) {
+            self.id = id
+            self.projectID = projectID
+            self.start = start
+            self.end = end
+            self.note = note
+            self.tagIDs = tagIDs
+        }
     }
 
     struct SettingsData: Codable, Equatable {
@@ -36,6 +54,7 @@ struct Backup: Codable, Equatable {
     var exportedAt: Date
     var projects: [ProjectData]
     var entries: [EntryData]
+    var tags: [TagData]?
     var settings: SettingsData
 }
 
@@ -73,6 +92,7 @@ enum BackupService {
     static func makeBackup(context: ModelContext, now: Date = Date(), defaults: UserDefaults = .standard) throws -> Backup {
         let projects = try context.fetch(FetchDescriptor<Project>(sortBy: [SortDescriptor(\.createdAt)]))
         let entries = try context.fetch(FetchDescriptor<TimeEntry>(sortBy: [SortDescriptor(\.start)]))
+        let tags = try context.fetch(FetchDescriptor<Tag>(sortBy: [SortDescriptor(\.createdAt)]))
         return Backup(
             version: Backup.currentVersion,
             exportedAt: now,
@@ -82,8 +102,10 @@ enum BackupService {
             },
             entries: entries.compactMap { entry in
                 guard let project = entry.project else { return nil }
-                return .init(id: entry.id, projectID: project.id, start: entry.start, end: entry.end, note: entry.note)
+                return .init(id: entry.id, projectID: project.id, start: entry.start, end: entry.end, note: entry.note,
+                             tagIDs: entry.tags.map(\.id))
             },
+            tags: tags.map { .init(id: $0.id, name: $0.name, colorName: $0.colorName, createdAt: $0.createdAt) },
             settings: .init(
                 defaultRate: defaults.string(forKey: SettingsKey.defaultRate) ?? "0",
                 roundingMinutes: defaults.integer(forKey: SettingsKey.rounding),
@@ -127,11 +149,22 @@ enum BackupService {
                 throw BackupError.invalid("neplatná sazba projektu „\(project.name)“")
             }
         }
+        var tagIDs = Set<UUID>()
+        var tagNames = Set<String>()
+        for tag in backup.tags ?? [] {
+            guard tagIDs.insert(tag.id).inserted else { throw BackupError.invalid("duplicitní štítek") }
+            guard let name = TagRules.normalized(tag.name),
+                  tagNames.insert(name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)).inserted
+            else { throw BackupError.invalid("štítek „\(tag.name)“ je prázdný nebo duplicitní") }
+        }
         var entryIDs = Set<UUID>()
         var running = 0
         for entry in backup.entries {
             guard entryIDs.insert(entry.id).inserted else { throw BackupError.invalid("duplicitní záznam") }
             guard ids.contains(entry.projectID) else { throw BackupError.invalid("záznam odkazuje na neexistující projekt") }
+            for id in entry.tagIDs ?? [] where !tagIDs.contains(id) {
+                throw BackupError.invalid("záznam odkazuje na neexistující štítek")
+            }
             if let end = entry.end {
                 guard end > entry.start else { throw BackupError.invalid("záznam, který nekončí po začátku") }
             } else {
@@ -151,6 +184,7 @@ enum BackupService {
 
         if mode == .replace {
             for project in try context.fetch(FetchDescriptor<Project>()) { context.delete(project) }
+            for tag in try context.fetch(FetchDescriptor<Tag>()) { context.delete(tag) }
             try context.save()
         }
 
@@ -180,6 +214,22 @@ enum BackupService {
             summary.addedProjects += 1
         }
 
+        // Štítky se mapují podle ID, jinak podle názvu (stejně jako projekty).
+        var localTag: [UUID: Tag] = [:]
+        let existingTags = try context.fetch(FetchDescriptor<Tag>())
+        for data in backup.tags ?? [] {
+            if let match = existingTags.first(where: { $0.id == data.id || TagRules.sameName($0.name, data.name) }) {
+                localTag[data.id] = match
+                continue
+            }
+            let tag = Tag(name: data.name)
+            tag.id = data.id
+            tag.colorName = data.colorName
+            tag.createdAt = data.createdAt
+            context.insert(tag)
+            localTag[data.id] = tag
+        }
+
         let existingEntries = Set(try context.fetch(FetchDescriptor<TimeEntry>()).map(\.id))
         var hasRunning = try context.fetch(FetchDescriptor<TimeEntry>(predicate: #Predicate { $0.end == nil })).isEmpty == false
         for data in backup.entries {
@@ -195,6 +245,7 @@ enum BackupService {
             let entry = TimeEntry(project: project, start: data.start, end: data.end, note: data.note)
             entry.id = data.id
             context.insert(entry)
+            entry.tags = (data.tagIDs ?? []).compactMap { localTag[$0] }
             summary.addedEntries += 1
         }
         try context.save()

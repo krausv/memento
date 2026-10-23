@@ -4,11 +4,21 @@ import SwiftUI
 struct EntriesView: View {
     @Environment(\.modelContext) private var context
     @Environment(TimerController.self) private var timer
-    @Query(sort: \TimeEntry.start, order: .reverse) private var entries: [TimeEntry]
+    @Query(sort: \TimeEntry.start, order: .reverse) private var allEntries: [TimeEntry]
+    @Query(sort: \Tag.name) private var tags: [Tag]
+    @State private var tagFilterID: UUID?
 
     @State private var showingNew = false
     @State private var editing: TimeEntry?
     @State private var editingNote: TimeEntry?
+
+    /// Smazaný štítek by filtr nechal viset a seznam by zůstal prázdný.
+    private var activeFilter: Tag? { tags.first { $0.id == tagFilterID } }
+
+    private var entries: [TimeEntry] {
+        guard let filter = activeFilter else { return allEntries }
+        return allEntries.filter { entry in entry.tags.contains { $0 === filter } }
+    }
 
     private var days: [(day: Date, entries: [TimeEntry])] {
         Dictionary(grouping: entries) { Calendar.prague.startOfDay(for: $0.start) }
@@ -20,7 +30,7 @@ struct EntriesView: View {
         List {
             if entries.isEmpty {
                 ContentUnavailableView("Žádné záznamy", systemImage: "clock",
-                                       description: Text("Spusť časovač nebo přidej záznam ručně."))
+                                       description: Text(activeFilter == nil ? "Spusť časovač nebo přidej záznam ručně." : "Se zvoleným štítkem nejsou žádné záznamy."))
             }
             ForEach(days, id: \.day) { group in
                 Section {
@@ -37,6 +47,14 @@ struct EntriesView: View {
         }
         .navigationTitle("Záznamy")
         .toolbar {
+            if !tags.isEmpty {
+                ToolbarItem {
+                    Picker("Štítek", selection: $tagFilterID) {
+                        Text("Všechny štítky").tag(UUID?.none)
+                        ForEach(tags) { Text($0.name).tag(Optional($0.id)) }
+                    }
+                }
+            }
             ToolbarItem {
                 Button("Přidat záznam", systemImage: "plus") { showingNew = true }
             }
@@ -53,6 +71,7 @@ struct EntriesView: View {
                 if let note = entry.note, !note.isEmpty {
                     Text(note).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                 }
+                TagChips(tags: entry.tags)
             }
             Spacer()
             if let end = entry.end {
@@ -67,7 +86,7 @@ struct EntriesView: View {
         .onTapGesture(count: 2) { edit(entry) }
         .contextMenu {
             if !entry.isRunning, let project = entry.project, !project.isArchived {
-                Button("Pokračovat") { _ = try? timer.start(project, note: entry.note) }
+                Button("Pokračovat") { _ = try? timer.start(project, note: entry.note, tags: entry.tags) }
             }
             Button(entry.isRunning ? "Upravit poznámku" : "Upravit") { edit(entry) }
             Button("Smazat", role: .destructive) { delete(entry) }
@@ -96,6 +115,7 @@ struct EntryForm: View {
     @State private var start: Date
     @State private var end: Date
     @State private var note: String
+    @State private var tags: [Tag]
     @State private var errorMessage: String?
 
     init(entry: TimeEntry?) {
@@ -105,6 +125,7 @@ struct EntryForm: View {
         _start = State(initialValue: entry?.start ?? now.addingTimeInterval(-3600))
         _end = State(initialValue: entry?.end ?? now)
         _note = State(initialValue: entry?.note ?? "")
+        _tags = State(initialValue: entry?.tags ?? [])
     }
 
     private var choices: [Project] {
@@ -124,6 +145,7 @@ struct EntryForm: View {
                 BulletTextEditor(text: $note).frame(minHeight: 120)
                     .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 10))
             }
+            TagPicker(selected: $tags)
             if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
         }
         .environment(\.locale, CzFormat.locale)
@@ -158,8 +180,11 @@ struct EntryForm: View {
             entry.start = start
             entry.end = end
             entry.note = cleanedNote
+            entry.tags = tags
         } else {
-            context.insert(TimeEntry(project: project, start: start, end: end, note: cleanedNote))
+            let created = TimeEntry(project: project, start: start, end: end, note: cleanedNote)
+            context.insert(created)
+            created.tags = tags
         }
         try? context.save()
         dismiss()
@@ -173,10 +198,12 @@ struct NoteForm: View {
 
     let entry: TimeEntry
     @State private var note: String
+    @State private var tags: [Tag]
 
     init(entry: TimeEntry) {
         self.entry = entry
         _note = State(initialValue: entry.note ?? "")
+        _tags = State(initialValue: entry.tags)
     }
 
     var body: some View {
@@ -184,6 +211,7 @@ struct NoteForm: View {
             Text(entry.project?.name ?? "").foregroundStyle(.secondary)
             BulletTextEditor(text: $note, autofocus: true).frame(minHeight: 160)
                 .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 10))
+            TagPicker(selected: $tags)
         }
         .formStyle(.grouped)
         .frame(width: 460)
@@ -196,6 +224,7 @@ struct NoteForm: View {
 
     private func save() {
         entry.note = BulletText.clean(note)
+        entry.tags = tags
         try? context.save()
         dismiss()
     }

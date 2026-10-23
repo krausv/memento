@@ -13,7 +13,7 @@ struct MementoApp: App {
         let container: ModelContainer
         do {
             container = try ModelContainer(
-                for: Project.self, TimeEntry.self,
+                for: Project.self, TimeEntry.self, Tag.self,
                 configurations: ModelConfiguration(isStoredInMemoryOnly: isTesting)
             )
         } catch {
