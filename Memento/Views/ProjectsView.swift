@@ -67,7 +67,8 @@ struct ProjectsView: View {
         HStack {
             Button("Spustit", systemImage: "play.fill") { _ = try? timer.start(project) }
                 .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
                 .disabled(project.isArchived)
             VStack(alignment: .leading) {
                 Text(project.name).font(.headline)
@@ -78,7 +79,12 @@ struct ProjectsView: View {
             if project.isArchived { Text("archivováno").font(.caption).foregroundStyle(.secondary) }
             Spacer()
             if timer.runningEntry?.project === project {
-                Text(timer.elapsedText).monospacedDigit().foregroundStyle(.tint)
+                Text(timer.elapsedText)
+                    .monospacedDigit()
+                    .foregroundStyle(.tint)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .glassEffect(.regular, in: .capsule)
             }
             Menu("Akce", systemImage: "ellipsis.circle") {
                 Button("Upravit") { sheet = .editProject(project) }

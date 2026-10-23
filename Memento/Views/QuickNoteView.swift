@@ -18,22 +18,35 @@ struct QuickNoteView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text(entry.project?.name ?? "Projekt").font(.headline)
                 Spacer()
-                Text(timer.elapsedText).monospacedDigit().foregroundStyle(.secondary)
+                Text(timer.elapsedText)
+                    .monospacedDigit()
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .glassEffect(.regular, in: .capsule)
             }
             BulletTextEditor(text: $note, autofocus: true)
                 .frame(minHeight: 200)
-            HStack {
-                Spacer()
-                Button("Zrušit", role: .cancel, action: close).keyboardShortcut(.cancelAction)
-                Button("Uložit", action: save).keyboardShortcut(.return, modifiers: .command)
+                .glassEffect(.regular, in: .rect(cornerRadius: 14))
+            GlassEffectContainer(spacing: 8) {
+                HStack(spacing: 8) {
+                    Spacer()
+                    Button("Zrušit", role: .cancel, action: close)
+                        .buttonStyle(.glass)
+                        .keyboardShortcut(.cancelAction)
+                    Button("Uložit", action: save)
+                        .buttonStyle(.glassProminent)
+                        .keyboardShortcut(.return, modifiers: .command)
+                }
             }
         }
-        .padding(16)
+        .padding(20)
+        .padding(.top, 18) // místo pro průhledný titulek okna
         .frame(width: 480)
+        .containerBackground(.regularMaterial, for: .window)
     }
 
     private func save() {

@@ -25,15 +25,17 @@ struct BulletTextEditor: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSTextView.scrollableTextView()
         scroll.hasVerticalScroller = true
-        scroll.borderType = .bezelBorder
+        scroll.borderType = .noBorder
+        scroll.drawsBackground = false
         let textView = scroll.documentView as! NSTextView
         textView.delegate = context.coordinator
         textView.isRichText = false
+        textView.drawsBackground = false
         textView.allowsUndo = true
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.font = .systemFont(ofSize: NSFont.systemFontSize)
-        textView.textContainerInset = NSSize(width: 4, height: 6)
+        textView.textContainerInset = NSSize(width: 6, height: 8)
         textView.string = text.isEmpty ? "\(BulletText.marker) " : text
         if text.isEmpty {
             DispatchQueue.main.async { self.text = textView.string }

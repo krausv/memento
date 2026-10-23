@@ -119,6 +119,7 @@ struct EntryForm: View {
             VStack(alignment: .leading) {
                 Text("Poznámka")
                 BulletTextEditor(text: $note).frame(minHeight: 120)
+                    .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 10))
             }
             if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
         }
@@ -179,6 +180,7 @@ struct NoteForm: View {
         Form {
             Text(entry.project?.name ?? "").foregroundStyle(.secondary)
             BulletTextEditor(text: $note, autofocus: true).frame(minHeight: 160)
+                .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 10))
         }
         .formStyle(.grouped)
         .frame(width: 460)

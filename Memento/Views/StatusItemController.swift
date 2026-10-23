@@ -127,7 +127,9 @@ final class StatusItemController: NSObject {
             .modelContainer(container)
         let window = NSWindow(contentViewController: NSHostingController(rootView: root))
         window.title = "Poznámka"
-        window.styleMask = [.titled, .closable]
+        window.styleMask = [.titled, .closable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
         window.isReleasedWhenClosed = false
         window.level = .floating
         window.center()
