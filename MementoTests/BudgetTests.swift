@@ -91,6 +91,19 @@ final class TargetStatusTests: XCTestCase {
         XCTAssertEqual(s.fraction, 60.0 / 70.0, accuracy: 0.0001)
     }
 
+    func testExplicitMonthIsEvaluatedInsteadOfCurrent() {
+        let september = BudgetStatus.Entry(
+            start: calendar.date(from: DateComponents(year: 2026, month: 9, day: 15, hour: 8))!,
+            end: calendar.date(from: DateComponents(year: 2026, month: 9, day: 15, hour: 18))!
+        )
+        let result = TargetStatus.compute(
+            target: 10_000, hourlyRate: 1000, entries: [september, .init(start: now.addingTimeInterval(-3600), end: now)],
+            now: now, rounding: .none, month: ReportMonth(year: 2026, month: 9)
+        )
+        XCTAssertEqual(result.amount, 10_000)
+        XCTAssertEqual(result.position, .on)
+    }
+
     func testOnlyCurrentMonthCounts() {
         let september = BudgetStatus.Entry(
             start: calendar.date(from: DateComponents(year: 2026, month: 9, day: 15, hour: 8))!,

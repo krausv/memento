@@ -89,9 +89,11 @@ struct TargetStatus: Equatable {
         entries: [BudgetStatus.Entry],
         now: Date,
         rounding: RoundingOption,
+        month: ReportMonth? = nil,
         calendar: Calendar = .prague
     ) -> TargetStatus {
-        let month = ReportMonth(containing: now, calendar: calendar)
+        // Bez `month` se hodnotí měsíc, ve kterém je `now`; `now` slouží vždy k dopočtu běžícího záznamu.
+        let month = month ?? ReportMonth(containing: now, calendar: calendar)
         let seconds = entries
             .filter { month.contains($0.start, calendar: calendar) }
             .reduce(0) { sum, entry in
@@ -104,12 +106,12 @@ struct TargetStatus: Equatable {
 }
 
 extension Project {
-    func targetStatus(now: Date, rounding: RoundingOption) -> TargetStatus? {
+    func targetStatus(now: Date, rounding: RoundingOption, month: ReportMonth? = nil) -> TargetStatus? {
         guard let target = targetAmount, target > 0 else { return nil }
         return TargetStatus.compute(
             target: target, hourlyRate: hourlyRate,
             entries: entries.map { .init(start: $0.start, end: $0.end) },
-            now: now, rounding: rounding
+            now: now, rounding: rounding, month: month
         )
     }
 

@@ -6,6 +6,7 @@ struct MainWindow: View {
     enum Section: String, CaseIterable, Identifiable {
         case projects = "Projekty"
         case entries = "Záznamy"
+        case stats = "Přehled"
         case export = "Export"
         case settings = "Nastavení"
 
@@ -15,6 +16,7 @@ struct MainWindow: View {
             switch self {
             case .projects: "folder"
             case .entries: "list.bullet.rectangle"
+            case .stats: "chart.bar"
             case .export: "square.and.arrow.up"
             case .settings: "gearshape"
             }
@@ -33,6 +35,7 @@ struct MainWindow: View {
             switch selection ?? .projects {
             case .projects: ProjectsView()
             case .entries: EntriesView()
+            case .stats: StatsView()
             case .export: ExportView()
             case .settings: SettingsView()
             }

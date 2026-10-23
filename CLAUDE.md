@@ -27,6 +27,7 @@ Lint není nastaven.
   - `ReportBuilder` – z záznamů vytvoří čistou strukturu výkazu (hodiny, částky, zaokrouhlení). Záznam patří do měsíce, ve kterém **začal**.
   - `EntryValidator` (konec po začátku, žádné překryvy), `FileNaming` (slug názvu PDF), `Formatting` (`CzFormat`, cs_CZ), `Calendar+Prague` (agregace vždy v Europe/Prague), `AppSettings`.
   - `Budget` – `BudgetStatus` (čerpání limitu hodin projektu), `BudgetMonitor` (periodická kontrola + upozornění, vytváří se jen mimo testy) a tenká vrstva `Notifications`.
+  - `Stats` – `StatsBuilder` (agregace pro sekci Přehled; skutečné časy, ne zaokrouhlené jako ve výkazu).
   - `Reminders` – `ReminderPolicy` (čistá funkce: kdy připomenout) a `ReminderScheduler` (minutový tick + probuzení Macu).
   - `Backup` – verzovaný JSON export/import (`BackupService`); při změně modelu zvaž bump `Backup.currentVersion` a doplň DTO.
 - `PDF/` – `ReportPaginator` rozdělí data na stránky, `ReportPageView` je SwiftUI stránka A4, `PDFExporter` renderuje přes `ImageRenderer` do PDF kontextu. Renderer jen vykresluje hotová data z `ReportBuilder`.
