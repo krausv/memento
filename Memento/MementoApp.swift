@@ -6,6 +6,7 @@ struct MementoApp: App {
     private let container: ModelContainer
     private let timer: TimerController
     private let statusItem: StatusItemController?
+    private let budgetMonitor: BudgetMonitor?
 
     init() {
         // Testy běží v hostitelské aplikaci – nesmí sahat na uživatelská data ani na lištu.
@@ -22,6 +23,19 @@ struct MementoApp: App {
         let timer = MainActor.assumeIsolated { TimerController(context: container.mainContext) }
         self.container = container
         self.timer = timer
+        if isTesting {
+            budgetMonitor = nil
+        } else {
+            Notifications.configure()
+            let monitor = MainActor.assumeIsolated {
+                BudgetMonitor(context: container.mainContext) { Notifications.post(title: $0, body: $1) }
+            }
+            MainActor.assumeIsolated {
+                timer.onChange = { [weak monitor] in monitor?.check() }
+                monitor.start()
+            }
+            budgetMonitor = monitor
+        }
         statusItem = isTesting ? nil : MainActor.assumeIsolated { StatusItemController(timer: timer, container: container) }
     }
 

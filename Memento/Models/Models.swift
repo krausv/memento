@@ -10,6 +10,17 @@ final class Project {
     var currency: String = "CZK"
     var isArchived: Bool = false
     var createdAt: Date = Date()
+    /// Rozpočet v hodinách; `nil` = bez limitu. Období viz `BudgetPeriod`.
+    var budgetHours: Decimal?
+    var budgetPeriod: String = BudgetPeriod.total.rawValue
+    /// Poslední oznámená úroveň (0 / 80 / 100) v období `budgetAlertKey`, aby se upozornění neopakovala.
+    var budgetAlertLevel: Int = 0
+    var budgetAlertKey: String?
+    /// Měsíční cíl fakturace v měně projektu; `nil` = bez cíle.
+    var targetAmount: Decimal?
+    /// Poslední oznámená poloha vůči cíli (`TargetStatus.Position.level`) v měsíci `targetAlertKey`.
+    var targetAlertLevel: Int = 0
+    var targetAlertKey: String?
 
     @Relationship(deleteRule: .cascade, inverse: \TimeEntry.project)
     var entries: [TimeEntry] = []

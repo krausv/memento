@@ -174,4 +174,23 @@ final class BackupTests: XCTestCase {
         backup.entries[0].tagIDs = [UUID()]
         XCTAssertThrowsError(try BackupService.validate(backup))
     }
+
+    func testBudgetRoundTripWithoutReplayingAlerts() throws {
+        let source = try makeContext()
+        let (project, _) = try seed(source)
+        project.budgetHours = Decimal(string: "0.5")
+        project.budgetPeriod = BudgetPeriod.total.rawValue
+        project.targetAmount = Decimal(string: "70000.5")
+        try source.save()
+        let backup = try BackupService.decode(
+            BackupService.encode(try BackupService.makeBackup(context: source, now: date, defaults: defaults)))
+
+        let target = try makeContext()
+        try BackupService.restore(backup, mode: .replace, context: target, defaults: defaults)
+        let restored = try XCTUnwrap(try target.fetch(FetchDescriptor<Project>()).first)
+        XCTAssertEqual(restored.budgetHours, Decimal(string: "0.5"))
+        XCTAssertEqual(restored.targetAmount, Decimal(string: "70000.5"))
+        // Hodina záznamu překračuje limit 0,5 h, ale upozornění se nemá znovu poslat.
+        XCTAssertEqual(restored.budgetAlertLevel, BudgetStatus.exceededLevel)
+    }
 }

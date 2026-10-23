@@ -11,6 +11,9 @@ final class TimerController {
     private let clock: () -> Date
     private var ticker: Timer?
 
+    /// Volá se po každém startu a zastavení (např. kontrola limitů).
+    var onChange: (() -> Void)?
+
     private(set) var runningEntry: TimeEntry?
     /// Aktualizuje se každou sekundu, dokud časovač běží.
     private(set) var now: Date
@@ -56,6 +59,7 @@ final class TimerController {
         entry.tags = tags
         try context.save()
         refresh()
+        onChange?()
         return entry
     }
 
@@ -92,6 +96,7 @@ final class TimerController {
         running.end = max(clock(), running.start)
         try context.save()
         refresh()
+        onChange?()
     }
 
     /// Aktivní projekty, naposledy použité první; projekty bez záznamů jsou na konci.

@@ -15,6 +15,11 @@ struct Backup: Codable, Equatable {
         var currency: String
         var isArchived: Bool
         var createdAt: Date
+        /// Limit hodin jako řetězec (viz `hourlyRate`); `nil` = bez limitu. Starší zálohy pole nemají.
+        var budgetHours: String?
+        var budgetPeriod: String?
+        /// Měsíční cíl fakturace jako řetězec; `nil` = bez cíle.
+        var targetAmount: String?
     }
 
     struct TagData: Codable, Equatable {
@@ -98,7 +103,9 @@ enum BackupService {
             exportedAt: now,
             projects: projects.map {
                 .init(id: $0.id, name: $0.name, client: $0.client, hourlyRate: "\($0.hourlyRate)",
-                      currency: $0.currency, isArchived: $0.isArchived, createdAt: $0.createdAt)
+                      currency: $0.currency, isArchived: $0.isArchived, createdAt: $0.createdAt,
+                      budgetHours: $0.budgetHours.map { "\($0)" }, budgetPeriod: $0.budgetPeriod,
+                      targetAmount: $0.targetAmount.map { "\($0)" })
             },
             entries: entries.compactMap { entry in
                 guard let project = entry.project else { return nil }
@@ -157,6 +164,21 @@ enum BackupService {
                   tagNames.insert(name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)).inserted
             else { throw BackupError.invalid("štítek „\(tag.name)“ je prázdný nebo duplicitní") }
         }
+        for project in backup.projects {
+            if let hours = project.budgetHours {
+                guard let value = Decimal(string: hours, locale: Locale(identifier: "en_US_POSIX")), value > 0 else {
+                    throw BackupError.invalid("neplatný limit projektu „\(project.name)“")
+                }
+            }
+            if let amount = project.targetAmount {
+                guard let value = Decimal(string: amount, locale: Locale(identifier: "en_US_POSIX")), value > 0 else {
+                    throw BackupError.invalid("neplatný měsíční cíl projektu „\(project.name)“")
+                }
+            }
+            if let period = project.budgetPeriod, BudgetPeriod(rawValue: period) == nil {
+                throw BackupError.invalid("neplatné období limitu projektu „\(project.name)“")
+            }
+        }
         var entryIDs = Set<UUID>()
         var running = 0
         for entry in backup.entries {
@@ -195,6 +217,7 @@ enum BackupService {
 
         // Mapování ID z přenosu na lokální projekt (kvůli sloučení projektů se stejným názvem).
         var localProject: [UUID: Project] = [:]
+        var addedProjects: [Project] = []
         for data in backup.projects {
             if let match = projects[data.id] ?? byName[data.name.lowercased()] {
                 localProject[data.id] = match
@@ -208,6 +231,10 @@ enum BackupService {
             project.id = data.id
             project.isArchived = data.isArchived
             project.createdAt = data.createdAt
+            project.budgetHours = data.budgetHours.flatMap { Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX")) }
+            project.budgetPeriod = data.budgetPeriod ?? BudgetPeriod.total.rawValue
+            project.targetAmount = data.targetAmount.flatMap { Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX")) }
+            addedProjects.append(project)
             context.insert(project)
             localProject[data.id] = project
             byName[data.name.lowercased()] = project
@@ -248,6 +275,10 @@ enum BackupService {
             entry.tags = (data.tagIDs ?? []).compactMap { localTag[$0] }
             summary.addedEntries += 1
         }
+        // Obnovená data nesmí hned spustit lavinu upozornění na dávno překročené limity.
+        let roundingMinutes = mode == .replace ? backup.settings.roundingMinutes : defaults.integer(forKey: SettingsKey.rounding)
+        let rounding = RoundingOption(rawValue: roundingMinutes) ?? .none
+        for project in addedProjects { project.syncBudgetAlertState(now: Date(), rounding: rounding) }
         try context.save()
 
         if mode == .replace {

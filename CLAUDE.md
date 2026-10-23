@@ -26,6 +26,7 @@ Lint není nastaven.
   - `TimerController` (`@MainActor @Observable`) – start/stop/přepnutí; běžící záznam se ukládá hned při startu, takže přežije restart. Čas injektovatelný přes `clock` pro testy.
   - `ReportBuilder` – z záznamů vytvoří čistou strukturu výkazu (hodiny, částky, zaokrouhlení). Záznam patří do měsíce, ve kterém **začal**.
   - `EntryValidator` (konec po začátku, žádné překryvy), `FileNaming` (slug názvu PDF), `Formatting` (`CzFormat`, cs_CZ), `Calendar+Prague` (agregace vždy v Europe/Prague), `AppSettings`.
+  - `Budget` – `BudgetStatus` (čerpání limitu hodin projektu), `BudgetMonitor` (periodická kontrola + upozornění, vytváří se jen mimo testy) a tenká vrstva `Notifications`.
   - `Backup` – verzovaný JSON export/import (`BackupService`); při změně modelu zvaž bump `Backup.currentVersion` a doplň DTO.
 - `PDF/` – `ReportPaginator` rozdělí data na stránky, `ReportPageView` je SwiftUI stránka A4, `PDFExporter` renderuje přes `ImageRenderer` do PDF kontextu. Renderer jen vykresluje hotová data z `ReportBuilder`.
 - `Views/` + `MementoApp.swift` – `StatusItemController` (vlastní `NSStatusItem`: levé tlačítko start/poznámka, pravé menu; spravuje i okna přes AppKit, SwiftUI scéna je prázdná) a hlavní okno (projekty, záznamy, export, nastavení). Aplikace je `LSUIElement` (bez ikony v Docku).

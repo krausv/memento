@@ -75,6 +75,12 @@ struct ProjectsView: View {
                 Text([project.client, "\(CzFormat.decimal(project.hourlyRate)) \(project.currency)/h"]
                     .compactMap { $0 }.joined(separator: " · "))
                     .font(.caption).foregroundStyle(.secondary)
+                if let status = project.budgetStatus(now: timer.now, rounding: AppSettings.rounding) {
+                    budgetView(project, status)
+                }
+                if let target = project.targetStatus(now: timer.now, rounding: AppSettings.rounding) {
+                    targetView(project, target)
+                }
             }
             if project.isArchived { Text("archivováno").font(.caption).foregroundStyle(.secondary) }
             Spacer()
@@ -95,6 +101,32 @@ struct ProjectsView: View {
             .menuStyle(.borderlessButton)
             .labelStyle(.iconOnly)
             .fixedSize()
+        }
+    }
+
+    private func budgetView(_ project: Project, _ status: BudgetStatus) -> some View {
+        let tint: Color = status.level >= BudgetStatus.exceededLevel ? .red : status.level >= BudgetStatus.warningLevel ? .orange : .accentColor
+        return VStack(alignment: .leading, spacing: 2) {
+            ProgressView(value: min(status.fraction, 1)).tint(tint).frame(width: 180)
+            Text("\(CzFormat.hours(seconds: status.usedSeconds)) z \(CzFormat.hours(seconds: status.budgetSeconds)) · \(project.budgetPeriodValue.title.lowercased())")
+                .font(.caption).foregroundStyle(tint == .accentColor ? Color.secondary : tint)
+        }
+    }
+
+    private func targetView(_ project: Project, _ status: TargetStatus) -> some View {
+        let (label, tint): (String, Color) = switch status.position {
+        case .under: ("pod hranicí", .accentColor)
+        case .on: ("na hranici", .green)
+        case .over: ("nad hranicí", .orange)
+        }
+        let difference = status.difference
+        let detail = difference < 0
+            ? "chybí \(CzFormat.money(-difference, currency: project.currency))"
+            : "+\(CzFormat.money(difference, currency: project.currency))"
+        return VStack(alignment: .leading, spacing: 2) {
+            ProgressView(value: min(status.fraction, 1)).tint(tint).frame(width: 180)
+            Text("\(CzFormat.money(status.amount, currency: project.currency)) z \(CzFormat.money(status.target, currency: project.currency)) tento měsíc · \(label) (\(detail))")
+                .font(.caption).foregroundStyle(tint == .accentColor ? Color.secondary : tint)
         }
     }
 
@@ -121,6 +153,11 @@ struct ProjectForm: View {
     @State private var client = ""
     @State private var rate: Decimal = 0
     @State private var currency = "CZK"
+    @State private var hasBudget: Bool
+    @State private var budgetHours: Decimal
+    @State private var budgetPeriod: BudgetPeriod
+    @State private var hasTarget: Bool
+    @State private var targetAmount: Decimal
 
     init(project: Project?) {
         self.project = project
@@ -128,6 +165,11 @@ struct ProjectForm: View {
         _client = State(initialValue: project?.client ?? "")
         _rate = State(initialValue: project?.hourlyRate ?? AppSettings.defaultRate)
         _currency = State(initialValue: project?.currency ?? "CZK")
+        _hasBudget = State(initialValue: project?.budgetHours != nil)
+        _budgetHours = State(initialValue: project?.budgetHours ?? 40)
+        _budgetPeriod = State(initialValue: project?.budgetPeriodValue ?? .total)
+        _hasTarget = State(initialValue: project?.targetAmount != nil)
+        _targetAmount = State(initialValue: project?.targetAmount ?? 50_000)
     }
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -139,6 +181,8 @@ struct ProjectForm: View {
         }
         if rate < 0 { return "Sazba nesmí být záporná." }
         if currency.trimmingCharacters(in: .whitespaces).isEmpty { return "Měna je povinná." }
+        if hasBudget, budgetHours <= 0 { return "Limit hodin musí být kladný." }
+        if hasTarget, targetAmount <= 0 { return "Měsíční cíl musí být kladný." }
         return nil
     }
 
@@ -148,7 +192,24 @@ struct ProjectForm: View {
             TextField("Klient", text: $client)
             TextField("Hodinová sazba", value: $rate, format: .number.precision(.fractionLength(0...2)))
             TextField("Měna", text: $currency)
-            if let error, !trimmedName.isEmpty || rate < 0 {
+            Section("Limit a cíl") {
+                Toggle("Hlídat limit hodin", isOn: $hasBudget)
+                if hasBudget {
+                    TextField("Limit (hodiny)", value: $budgetHours, format: .number.precision(.fractionLength(0...2)))
+                    Picker("Období", selection: $budgetPeriod) {
+                        ForEach(BudgetPeriod.allCases) { Text($0.title).tag($0) }
+                    }
+                    Text("Upozornění přijde při 80 % a po překročení limitu.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Toggle("Měsíční cíl fakturace", isOn: $hasTarget)
+                if hasTarget {
+                    TextField("Cíl za měsíc (\(currency))", value: $targetAmount, format: .number.precision(.fractionLength(0...2)))
+                    Text("Hodnotí se částka za aktuální měsíc podle sazby projektu: pod hranicí, na hranici (±2 % cíle) a nad ní. Upozornění přijde po dosažení cíle a po jeho překročení.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if let error, !trimmedName.isEmpty || rate < 0 || hasBudget || hasTarget {
                 Text(error).foregroundStyle(.red)
             }
         }
@@ -161,6 +222,16 @@ struct ProjectForm: View {
         }
     }
 
+    private func applyBudget(to project: Project) {
+        let wasEnabled = project.budgetHours != nil || project.targetAmount != nil
+        project.budgetHours = hasBudget ? budgetHours : nil
+        project.targetAmount = hasTarget ? targetAmount : nil
+        project.budgetPeriod = budgetPeriod.rawValue
+        // Po úpravě limitu se stávající čerpání neoznamuje, hlídá se až další překročení.
+        project.syncBudgetAlertState(now: Date(), rounding: AppSettings.rounding)
+        if hasBudget || hasTarget, !wasEnabled { Notifications.requestAuthorization() }
+    }
+
     private func save() {
         let clientValue = client.trimmingCharacters(in: .whitespacesAndNewlines)
         let currencyValue = currency.trimmingCharacters(in: .whitespaces).uppercased()
@@ -169,9 +240,12 @@ struct ProjectForm: View {
             project.client = clientValue.isEmpty ? nil : clientValue
             project.hourlyRate = rate
             project.currency = currencyValue
+            applyBudget(to: project)
         } else {
-            context.insert(Project(name: trimmedName, client: clientValue.isEmpty ? nil : clientValue,
-                                   hourlyRate: rate, currency: currencyValue))
+            let created = Project(name: trimmedName, client: clientValue.isEmpty ? nil : clientValue,
+                                  hourlyRate: rate, currency: currencyValue)
+            context.insert(created)
+            applyBudget(to: created)
         }
         try? context.save()
         dismiss()
