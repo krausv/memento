@@ -7,6 +7,7 @@ struct MementoApp: App {
     private let timer: TimerController
     private let statusItem: StatusItemController?
     private let budgetMonitor: BudgetMonitor?
+    private let reminders: ReminderScheduler?
 
     init() {
         // Testy běží v hostitelské aplikaci – nesmí sahat na uživatelská data ani na lištu.
@@ -25,6 +26,7 @@ struct MementoApp: App {
         self.timer = timer
         if isTesting {
             budgetMonitor = nil
+            reminders = nil
         } else {
             Notifications.configure()
             let monitor = MainActor.assumeIsolated {
@@ -35,6 +37,26 @@ struct MementoApp: App {
                 monitor.start()
             }
             budgetMonitor = monitor
+
+            let scheduler = MainActor.assumeIsolated {
+                ReminderScheduler(timer: timer) { reminder, title, body in
+                    switch reminder {
+                    case .notRunning: Notifications.post(title: title, body: body, category: .notRunning)
+                    case .longRunning: Notifications.post(title: title, body: body, category: .longRunning)
+                    }
+                }
+            }
+            MainActor.assumeIsolated {
+                scheduler.start()
+                Notifications.actionHandler = { [weak timer] action in
+                    switch action {
+                    case Notifications.Action.startLast: _ = try? timer?.startDefault()
+                    case Notifications.Action.stop: try? timer?.stop()
+                    default: break
+                    }
+                }
+            }
+            reminders = scheduler
         }
         statusItem = isTesting ? nil : MainActor.assumeIsolated { StatusItemController(timer: timer, container: container) }
     }

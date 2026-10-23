@@ -193,4 +193,21 @@ final class BackupTests: XCTestCase {
         // Hodina záznamu překračuje limit 0,5 h, ale upozornění se nemá znovu poslat.
         XCTAssertEqual(restored.budgetAlertLevel, BudgetStatus.exceededLevel)
     }
+
+    func testReminderSettingsRoundTrip() throws {
+        let source = try makeContext()
+        _ = try seed(source)
+        var reminders = ReminderSettings()
+        reminders.remindNotRunning = true
+        reminders.workDays = [2, 4]
+        reminders.longRunningHours = 6
+        defaults.set(try JSONEncoder().encode(reminders), forKey: SettingsKey.reminders)
+        let backup = try BackupService.decode(
+            BackupService.encode(try BackupService.makeBackup(context: source, now: date, defaults: defaults)))
+
+        let other = UserDefaults(suiteName: "BackupTests-rem-\(UUID())")!
+        try BackupService.restore(backup, mode: .replace, context: try makeContext(), defaults: other)
+        let restored = try JSONDecoder().decode(ReminderSettings.self, from: try XCTUnwrap(other.data(forKey: SettingsKey.reminders)))
+        XCTAssertEqual(restored, reminders)
+    }
 }

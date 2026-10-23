@@ -5,6 +5,7 @@ enum SettingsKey {
     static let rounding = "exportRoundingMinutes"
     static let supplierName = "supplierName"
     static let supplierIco = "supplierIco"
+    static let reminders = "reminderSettings"
 }
 
 enum AppSettings {
@@ -15,6 +16,15 @@ enum AppSettings {
 
     static var rounding: RoundingOption {
         RoundingOption(rawValue: UserDefaults.standard.integer(forKey: SettingsKey.rounding)) ?? .none
+    }
+
+    /// Uloženo jako JSON, aby se nastavení připomínek četlo a zálohovalo jako jeden celek.
+    static var reminders: ReminderSettings {
+        get {
+            UserDefaults.standard.data(forKey: SettingsKey.reminders)
+                .flatMap { try? JSONDecoder().decode(ReminderSettings.self, from: $0) } ?? ReminderSettings()
+        }
+        set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: SettingsKey.reminders) }
     }
 
     static var supplierName: String? { nonEmpty(SettingsKey.supplierName) }

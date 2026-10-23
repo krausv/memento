@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var defaultRate = AppSettings.defaultRate
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var launchError: String?
+    @State private var reminders = AppSettings.reminders
     @State private var pendingBackup: Backup?
     @State private var backupMessage: String?
     @State private var backupFailed = false
@@ -33,6 +34,7 @@ struct SettingsView: View {
                 TextField("Jméno dodavatele", text: $supplierName)
                 TextField("IČO dodavatele", text: $supplierIco)
             }
+            remindersSection
             TagManagerSection()
             Section("Záloha") {
                 HStack {
@@ -64,6 +66,60 @@ struct SettingsView: View {
         } message: { backup in
             Text("Záloha z \(CzFormat.date(backup.exportedAt)): projektů \(backup.projects.count), záznamů \(backup.entries.count). Sloučení nic nemaže; nahrazení smaže stávající data i nastavení.")
         }
+    }
+
+    private static let weekdays: [(day: Int, title: String)] = [
+        (2, "Po"), (3, "Út"), (4, "St"), (5, "Čt"), (6, "Pá"), (7, "So"), (1, "Ne"),
+    ]
+
+    private var remindersSection: some View {
+        Section("Připomínky") {
+            Toggle("Připomenout, když v pracovní době neběží časovač", isOn: $reminders.remindNotRunning)
+            if reminders.remindNotRunning {
+                HStack {
+                    Text("Pracovní dny")
+                    Spacer()
+                    ForEach(Self.weekdays, id: \.day) { weekday in
+                        Toggle(weekday.title, isOn: Binding(
+                            get: { reminders.workDays.contains(weekday.day) },
+                            set: { on in
+                                if on { reminders.workDays.insert(weekday.day) } else { reminders.workDays.remove(weekday.day) }
+                            }
+                        ))
+                        .toggleStyle(.button)
+                    }
+                }
+                DatePicker("Od", selection: minutesBinding(\.workStartMinutes), displayedComponents: .hourAndMinute)
+                DatePicker("Do", selection: minutesBinding(\.workEndMinutes), displayedComponents: .hourAndMinute)
+                Text("Připomíná nejvýš jednou za hodinu a ne dříve než 15 minut po zastavení časovače.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Toggle("Upozornit, když časovač běží příliš dlouho", isOn: $reminders.remindLongRunning)
+            if reminders.remindLongRunning {
+                Stepper("Po \(reminders.longRunningHours) h", value: $reminders.longRunningHours, in: 1...24)
+            }
+        }
+        .environment(\.locale, CzFormat.locale)
+        .environment(\.calendar, .prague)
+        .environment(\.timeZone, Calendar.prague.timeZone)
+        .onChange(of: reminders) {
+            AppSettings.reminders = reminders
+            if reminders.remindNotRunning || reminders.remindLongRunning { Notifications.requestAuthorization() }
+        }
+    }
+
+    /// Čas v minutách od půlnoci jako `Date` pro `DatePicker` (datum je v pražském kalendáři libovolné).
+    private func minutesBinding(_ keyPath: WritableKeyPath<ReminderSettings, Int>) -> Binding<Date> {
+        Binding(
+            get: {
+                Calendar.prague.date(bySettingHour: reminders[keyPath: keyPath] / 60,
+                                     minute: reminders[keyPath: keyPath] % 60, second: 0, of: Date()) ?? Date()
+            },
+            set: { date in
+                let parts = Calendar.prague.dateComponents([.hour, .minute], from: date)
+                reminders[keyPath: keyPath] = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+            }
+        )
     }
 
     private func exportBackup() {
@@ -100,6 +156,7 @@ struct SettingsView: View {
             let summary = try BackupService.restore(backup, mode: mode, context: context)
             timer.refresh()
             defaultRate = AppSettings.defaultRate
+            reminders = AppSettings.reminders
             report("Import hotov: přidáno projektů \(summary.addedProjects), záznamů \(summary.addedEntries), přeskočeno \(summary.skippedEntries).")
         } catch {
             report("Import selhal: \(error.localizedDescription)", failed: true)

@@ -58,10 +58,8 @@ final class StatusItemController: NSObject {
             showMenu()
         } else if let running = timer.runningEntry {
             showNoteWindow(for: running)
-        } else if (try? timer.resumeLast()) != nil {
-            // navázáno na poslední záznam
-        } else if let project = timer.selectableProjects().first {
-            _ = try? timer.start(project)
+        } else if (try? timer.startDefault()) != nil {
+            // spuštěno
         } else {
             showMainWindow()
         }

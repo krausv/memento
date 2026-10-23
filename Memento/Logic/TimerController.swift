@@ -91,6 +91,14 @@ final class TimerController {
         return try start(project, note: fresh ? last.note : nil, tags: fresh ? last.tags : [])
     }
 
+    /// Nejrozumnější start bez volby: navázání na poslední záznam, jinak naposledy použitý projekt.
+    @discardableResult
+    func startDefault() throws -> TimeEntry? {
+        if let resumed = try resumeLast() { return resumed }
+        guard let project = selectableProjects().first else { return nil }
+        return try start(project)
+    }
+
     func stop() throws {
         guard let running = runningEntry else { return }
         running.end = max(clock(), running.start)

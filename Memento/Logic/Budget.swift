@@ -1,6 +1,5 @@
 import Foundation
 import SwiftData
-import UserNotifications
 
 enum BudgetPeriod: String, CaseIterable, Identifiable {
     case total
@@ -233,34 +232,5 @@ final class BudgetMonitor {
         let percent = Int((status.fraction * 100).rounded(.down))
         let scope = project.budgetPeriodValue == .monthly ? " tento měsíc" : ""
         return "Vyčerpáno\(scope) \(percent) % (\(CzFormat.hours(seconds: status.usedSeconds)) z \(CzFormat.hours(seconds: status.budgetSeconds)))."
-    }
-}
-
-/// Tenká vrstva nad systémovými oznámeními.
-enum Notifications {
-    private final class Delegate: NSObject, UNUserNotificationCenterDelegate {
-        // Aplikace nemá ikonu v Docku a je často "aktivní", bez tohoto by se banner neukázal.
-        func userNotificationCenter(
-            _ center: UNUserNotificationCenter, willPresent notification: UNNotification
-        ) async -> UNNotificationPresentationOptions { [.banner, .sound] }
-    }
-
-    private static let delegate = Delegate()
-
-    static func configure() {
-        UNUserNotificationCenter.current().delegate = delegate
-    }
-
-    static func requestAuthorization() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
-    }
-
-    static func post(title: String, body: String) {
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
-        content.sound = .default
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request)
     }
 }
