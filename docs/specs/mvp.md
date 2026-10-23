@@ -1,10 +1,11 @@
 # Memento – zadání MVP
 
-Jednoduchá nativní macOS aplikace pro sledování času na úkolech. Žádný backend, žádné účty, žádná synchronizace. Data zůstávají lokálně na Macu. Na konci měsíce vygeneruje PDF výkaz hodin pro každý projekt podle jeho hodinové sazby.
+Jednoduchá nativní macOS aplikace pro sledování času na projektech. Žádný backend, žádné účty, žádná synchronizace. Data zůstávají lokálně na Macu. Na konci měsíce vygeneruje PDF výkaz hodin pro každý projekt podle jeho hodinové sazby.
 
 ## Technologie
 
 - Swift 5.10+, SwiftUI, cílová verze macOS 27 (Golden Gate) a novější
+- UI používá design system Liquid Glass (standardní prvky ho přebírají od systému, vlastní prvky `glassEffect` / `.glass` tlačítka)
 - Perzistence: SwiftData (lokální úložiště v Application Support)
 - Generování PDF: SwiftUI `ImageRenderer` do PDF kontextu (bez knihoven třetích stran)
 - Xcode projekt generovat přes **XcodeGen** (`project.yml`), `.xcodeproj` needitovat ručně a necommitovat
@@ -15,10 +16,12 @@ Jednoduchá nativní macOS aplikace pro sledování času na úkolech. Žádný 
 
 Aplikace má dvě části:
 
-1. **Menu bar** (`MenuBarExtra`) – hlavní ovládání během dne
-   - Ikona v liště; když běží časovač, vedle ikony je vidět uplynulý čas (`1:23`)
-   - Po kliknutí: aktuálně běžící úkol + tlačítko Stop, seznam posledních 5 úkolů pro rychlé spuštění, tlačítko „Otevřít Memento“, Ukončit
-2. **Hlavní okno** – správa projektů, úkolů, záznamů a export
+1. **Ikona v liště** (`NSStatusItem`, ne `MenuBarExtra`, protože ten nerozliší levé a pravé tlačítko) – hlavní ovládání během dne
+   - Ikona s časovačem; když běží časovač, vedle ikony je vidět uplynulý čas (`1:23`)
+   - **Levé tlačítko, časovač neběží:** spustí časovač na naposledy použitém nearchivovaném projektu (bez projektů otevře hlavní okno)
+   - **Levé tlačítko, časovač běží:** otevře malé okno s poznámkou k běžícímu záznamu (⌘↩ uloží)
+   - **Pravé tlačítko (nebo Ctrl+klik):** menu s běžícím projektem, Poznámka…, Stop, seznamem projektů (naposledy použité první) pro spuštění, „Otevřít Memento“, Ukončit
+2. **Hlavní okno** – správa projektů, záznamů a export
 
 Aplikace se nezobrazuje v Docku (`LSUIElement = YES`), hlavní okno se otevírá z menu baru.
 
@@ -32,40 +35,34 @@ Aplikace se nezobrazuje v Docku (`LSUIElement = YES`), hlavní okno se otevírá
 - `currency: String` (výchozí „CZK“)
 - `isArchived: Bool`
 - `createdAt: Date`
-- vztah: `tasks: [Task]`
-
-**Task**
-- `id: UUID`
-- `name: String` (povinné)
-- `isArchived: Bool`
-- `createdAt: Date`
-- vztahy: `project: Project`, `entries: [TimeEntry]`
+- vztah: `entries: [TimeEntry]`
 
 **TimeEntry**
 - `id: UUID`
 - `start: Date`
 - `end: Date?` (nil = právě běží)
-- `note: String?`
-- vztah: `task: Task`
+- `note: String?` (volný, i víceřádkový popis práce; nahrazuje úkoly, v UI se automaticky odrážkuje)
+- vztah: `project: Project`
 - vypočtené: `duration: TimeInterval`
 
-Mazání: smazání projektu smaže jeho úkoly a záznamy (cascade), ale jen po potvrzení. Preferovaná akce je archivace.
+Úkoly se nepoužívají – popis práce nese poznámka záznamu.
+
+Mazání: smazání projektu smaže jeho záznamy (cascade), ale jen po potvrzení. Preferovaná akce je archivace.
 
 ## Funkce
 
 ### Časovač
-- V jeden okamžik může běžet **nejvýše jeden** časovač. Spuštění dalšího úkolu automaticky ukončí běžící záznam.
+- V jeden okamžik může běžet **nejvýše jeden** časovač. Spuštění časovače na jiném projektu automaticky ukončí běžící záznam.
 - Běžící záznam je uložen hned při startu (`end = nil`), takže přežije ukončení aplikace, pád i restart Macu. Po spuštění aplikace časovač pokračuje.
 - Zobrazení uplynulého času se aktualizuje každou sekundu, ukládá se pouze start a konec.
 
-### Projekty a úkoly
+### Projekty
 - Vytvoření, úprava a archivace projektu (název, klient, sazba, měna)
-- Vytvoření, úprava a archivace úkolu v rámci projektu
-- Archivované položky se nezobrazují v menu baru ani při výběru, ale zůstávají v historii a exportech
+- Archivované projekty se nezobrazují v menu baru ani při výběru, ale zůstávají v historii a exportech
 
 ### Záznamy času
 - Seznam záznamů seskupený po dnech (nejnovější nahoře), u každého dne součet
-- Ruční přidání záznamu (úkol, datum, od–do) pro případ, že jsem zapomněl píchnout
+- Ruční přidání záznamu (projekt, datum, od–do, poznámka) pro případ, že jsem zapomněl píchnout
 - Úprava a smazání záznamu
 - Validace: konec musí být po začátku, záznamy jednoho uživatele se nesmí překrývat (při překryvu zobrazit chybu)
 - Záznam přes půlnoc je povolen; pro účely měsíčního výkazu se počítá do dne a měsíce, ve kterém **začal**
@@ -79,10 +76,9 @@ Mazání: smazání projektu smaže jeho úkoly a záznamy (cascade), ale jen po
 
 **Obsah PDF (A4, na výšku):**
 1. Hlavička: „Výkaz práce“, název projektu, klient (pokud je vyplněn), období (např. „říjen 2026“)
-2. Tabulka po úkolech: název úkolu, počet hodin
-3. Detailní tabulka záznamů: datum, úkol, poznámka, od–do, trvání
-4. Souhrn: celkem hodin, hodinová sazba, **celková částka**
-5. Patička: datum vygenerování, číslo stránky
+2. Detailní tabulka záznamů: datum, poznámka, od–do, trvání (řádek se přizpůsobí délce poznámky)
+3. Souhrn: celkem hodin, hodinová sazba, **celková částka**
+4. Patička: datum vygenerování, číslo stránky
 
 Formátování:
 - Hodiny zobrazovat desetinně na 2 místa (`12,50 h`), české formátování čísel a data (`cs_CZ`)
@@ -98,7 +94,7 @@ Formátování:
 
 ## Architektura
 
-- Oddělit výpočetní logiku od UI: služba pro agregaci výkazu (`ReportBuilder`) dostane záznamy a vrátí čistou strukturu (úkoly, hodiny, částky). PDF renderer pouze vykresluje hotová data.
+- Oddělit výpočetní logiku od UI: služba pro agregaci výkazu (`ReportBuilder`) dostane záznamy a vrátí čistou strukturu (záznamy, hodiny, částky). PDF renderer pouze vykresluje hotová data.
 - Logiku časovače (start/stop/přepnutí) mít v samostatné třídě, ne ve view
 - Peníze počítat v `Decimal`, nikdy v `Double`
 - Čas vždy ukládat jako `Date`, převod na lokální čas (Europe/Prague) až při zobrazení a agregaci
@@ -120,7 +116,7 @@ Neimplementovat: synchronizaci, iCloud, iOS verzi, účty, týmy, fakturaci a DP
 ## Kritéria dokončení
 
 - [ ] Aplikace se sestaví z CLI bez varování a všechny testy projdou
-- [ ] Jde vytvořit projekt se sazbou a úkol, spustit a zastavit časovač z menu baru
+- [ ] Jde vytvořit projekt se sazbou, spustit a zastavit časovač z menu baru
 - [ ] Běžící časovač přežije ukončení a znovuspuštění aplikace
 - [ ] Jde ručně přidat, upravit a smazat záznam
 - [ ] Export za měsíc vytvoří správné PDF pro každý projekt a čísla v PDF sedí s testy

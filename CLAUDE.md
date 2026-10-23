@@ -27,11 +27,10 @@ Lint není nastaven.
   - `ReportBuilder` – z záznamů vytvoří čistou strukturu výkazu (hodiny, částky, zaokrouhlení). Záznam patří do měsíce, ve kterém **začal**.
   - `EntryValidator` (konec po začátku, žádné překryvy), `FileNaming` (slug názvu PDF), `Formatting` (`CzFormat`, cs_CZ), `Calendar+Prague` (agregace vždy v Europe/Prague), `AppSettings`.
 - `PDF/` – `ReportPaginator` rozdělí data na stránky, `ReportPageView` je SwiftUI stránka A4, `PDFExporter` renderuje přes `ImageRenderer` do PDF kontextu. Renderer jen vykresluje hotová data z `ReportBuilder`.
-- `Views/` + `MementoApp.swift` – `MenuBarExtra` jako hlavní ovládání a hlavní okno (projekty, záznamy, export, nastavení). Aplikace je `LSUIElement` (bez ikony v Docku).
+- `Views/` + `MementoApp.swift` – `StatusItemController` (vlastní `NSStatusItem`: levé tlačítko start/poznámka, pravé menu; spravuje i okna přes AppKit, SwiftUI scéna je prázdná) a hlavní okno (projekty, záznamy, export, nastavení). Aplikace je `LSUIElement` (bez ikony v Docku).
 
 ## Konvence
 
 - Peníze vždy `Decimal`, nikdy `Double`; zaokrouhlení až na konci z přesného součtu sekund.
 - Ukládají se skutečné časy (`Date`); zaokrouhlování z nastavení platí jen ve výpočtu exportu.
-- Spec v `docs/specs/mvp.md` ještě popisuje úkoly (`Task`); platí model bez úkolů výše.
 - Testy (`MementoTests/`, XCTest) míří na logiku v `Logic/` a `PDF/ReportPaginator`, ne na views.
