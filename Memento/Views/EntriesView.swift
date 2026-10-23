@@ -8,6 +8,7 @@ struct EntriesView: View {
 
     @State private var showingNew = false
     @State private var editing: TimeEntry?
+    @State private var editingNote: TimeEntry?
 
     private var days: [(day: Date, entries: [TimeEntry])] {
         Dictionary(grouping: entries) { Calendar.prague.startOfDay(for: $0.start) }
@@ -42,12 +43,13 @@ struct EntriesView: View {
         }
         .sheet(isPresented: $showingNew) { EntryForm(entry: nil) }
         .sheet(item: $editing) { EntryForm(entry: $0) }
+        .sheet(item: $editingNote) { NoteForm(entry: $0) }
     }
 
     private func row(_ entry: TimeEntry) -> some View {
         HStack {
             VStack(alignment: .leading) {
-                Text(entry.task?.displayName ?? "—")
+                Text(entry.project?.name ?? "—")
                 if let note = entry.note, !note.isEmpty {
                     Text(note).font(.caption).foregroundStyle(.secondary)
                 }
@@ -62,11 +64,15 @@ struct EntriesView: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { if !entry.isRunning { editing = entry } }
+        .onTapGesture(count: 2) { edit(entry) }
         .contextMenu {
-            if !entry.isRunning { Button("Upravit") { editing = entry } }
+            Button(entry.isRunning ? "Upravit poznámku" : "Upravit") { edit(entry) }
             Button("Smazat", role: .destructive) { delete(entry) }
         }
+    }
+
+    private func edit(_ entry: TimeEntry) {
+        if entry.isRunning { editingNote = entry } else { editing = entry }
     }
 
     private func delete(_ entry: TimeEntry) {
@@ -79,11 +85,11 @@ struct EntriesView: View {
 struct EntryForm: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \ProjectTask.name) private var tasks: [ProjectTask]
+    @Query(sort: \Project.name) private var projects: [Project]
     @Query private var entries: [TimeEntry]
 
     let entry: TimeEntry?
-    @State private var task: ProjectTask?
+    @State private var project: Project?
     @State private var start: Date
     @State private var end: Date
     @State private var note: String
@@ -92,25 +98,25 @@ struct EntryForm: View {
     init(entry: TimeEntry?) {
         self.entry = entry
         let now = Date()
-        _task = State(initialValue: entry?.task)
+        _project = State(initialValue: entry?.project)
         _start = State(initialValue: entry?.start ?? now.addingTimeInterval(-3600))
         _end = State(initialValue: entry?.end ?? now)
         _note = State(initialValue: entry?.note ?? "")
     }
 
-    private var choices: [ProjectTask] {
-        tasks.filter { $0.isSelectable || $0 === entry?.task }
+    private var choices: [Project] {
+        projects.filter { !$0.isArchived || $0 === entry?.project }
     }
 
     var body: some View {
         Form {
-            Picker("Úkol", selection: $task) {
-                Text("Vyber úkol").tag(ProjectTask?.none)
-                ForEach(choices) { Text($0.displayName).tag(Optional($0)) }
+            Picker("Projekt", selection: $project) {
+                Text("Vyber projekt").tag(Project?.none)
+                ForEach(choices) { Text($0.name).tag(Optional($0)) }
             }
             DatePicker("Od", selection: $start)
             DatePicker("Do", selection: $end)
-            TextField("Poznámka", text: $note)
+            TextField("Poznámka", text: $note, axis: .vertical)
             if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
         }
         .environment(\.locale, CzFormat.locale)
@@ -121,12 +127,12 @@ struct EntryForm: View {
         .navigationTitle(entry == nil ? "Nový záznam" : "Upravit záznam")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Zrušit") { dismiss() } }
-            ToolbarItem(placement: .confirmationAction) { Button("Uložit", action: save).disabled(task == nil) }
+            ToolbarItem(placement: .confirmationAction) { Button("Uložit", action: save).disabled(project == nil) }
         }
     }
 
     private func save() {
-        guard let task else { return }
+        guard let project else { return }
         // Sekundy nemají v UI smysl, ale rozdíl pár vteřin by mohl vyvolat falešné překrytí.
         let start = Date(timeIntervalSinceReferenceDate: (self.start.timeIntervalSinceReferenceDate / 60).rounded(.down) * 60)
         let end = Date(timeIntervalSinceReferenceDate: (self.end.timeIntervalSinceReferenceDate / 60).rounded(.down) * 60)
@@ -141,13 +147,48 @@ struct EntryForm: View {
         }
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
         if let entry {
-            entry.task = task
+            entry.project = project
             entry.start = start
             entry.end = end
             entry.note = trimmedNote.isEmpty ? nil : trimmedNote
         } else {
-            context.insert(TimeEntry(task: task, start: start, end: end, note: trimmedNote.isEmpty ? nil : trimmedNote))
+            context.insert(TimeEntry(project: project, start: start, end: end, note: trimmedNote.isEmpty ? nil : trimmedNote))
         }
+        try? context.save()
+        dismiss()
+    }
+}
+
+/// Úprava poznámky běžícího záznamu (čas měnit nejde, dokud běží).
+struct NoteForm: View {
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+
+    let entry: TimeEntry
+    @State private var note: String
+
+    init(entry: TimeEntry) {
+        self.entry = entry
+        _note = State(initialValue: entry.note ?? "")
+    }
+
+    var body: some View {
+        Form {
+            Text(entry.project?.name ?? "").foregroundStyle(.secondary)
+            TextField("Poznámka", text: $note, axis: .vertical)
+        }
+        .formStyle(.grouped)
+        .frame(width: 400)
+        .navigationTitle("Poznámka")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) { Button("Zrušit") { dismiss() } }
+            ToolbarItem(placement: .confirmationAction) { Button("Uložit", action: save) }
+        }
+    }
+
+    private func save() {
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        entry.note = trimmed.isEmpty ? nil : trimmed
         try? context.save()
         dismiss()
     }

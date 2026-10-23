@@ -48,11 +48,9 @@ enum PDFExporter {
         var used = Set<String>()
         var written: [URL] = []
         for project in projects {
-            let entries = (project.tasks).flatMap { task in
-                task.entries.compactMap { entry -> ReportEntry? in
-                    guard let end = entry.end else { return nil }
-                    return ReportEntry(taskName: task.name, note: entry.note, start: entry.start, end: end)
-                }
+            let entries = project.entries.compactMap { entry -> ReportEntry? in
+                guard let end = entry.end else { return nil }
+                return ReportEntry(note: entry.note, start: entry.start, end: end)
             }
             let report = ReportBuilder().build(
                 projectName: project.name, client: project.client, currency: project.currency,

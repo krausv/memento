@@ -1,8 +1,6 @@
 import Foundation
 import SwiftData
 
-// Třída se jmenuje ProjectTask, aby nestínila Swift.Task ze Swift Concurrency.
-
 @Model
 final class Project {
     var id: UUID = UUID()
@@ -13,8 +11,8 @@ final class Project {
     var isArchived: Bool = false
     var createdAt: Date = Date()
 
-    @Relationship(deleteRule: .cascade, inverse: \ProjectTask.project)
-    var tasks: [ProjectTask] = []
+    @Relationship(deleteRule: .cascade, inverse: \TimeEntry.project)
+    var entries: [TimeEntry] = []
 
     init(name: String, client: String? = nil, hourlyRate: Decimal, currency: String = "CZK") {
         self.name = name
@@ -25,38 +23,17 @@ final class Project {
 }
 
 @Model
-final class ProjectTask {
-    var id: UUID = UUID()
-    var name: String = ""
-    var isArchived: Bool = false
-    var createdAt: Date = Date()
-    var project: Project?
-
-    @Relationship(deleteRule: .cascade, inverse: \TimeEntry.task)
-    var entries: [TimeEntry] = []
-
-    init(name: String, project: Project) {
-        self.name = name
-        self.project = project
-    }
-
-    /// Úkol je nabízen k výběru jen když není archivovaný on ani jeho projekt.
-    var isSelectable: Bool { !isArchived && !(project?.isArchived ?? false) }
-
-    var displayName: String { "\(project?.name ?? "?") › \(name)" }
-}
-
-@Model
 final class TimeEntry {
     var id: UUID = UUID()
     var start: Date = Date()
     /// `nil` = právě běží.
     var end: Date?
+    /// Volný popis práce; nahrazuje úkoly.
     var note: String?
-    var task: ProjectTask?
+    var project: Project?
 
-    init(task: ProjectTask, start: Date, end: Date? = nil, note: String? = nil) {
-        self.task = task
+    init(project: Project, start: Date, end: Date? = nil, note: String? = nil) {
+        self.project = project
         self.start = start
         self.end = end
         self.note = note

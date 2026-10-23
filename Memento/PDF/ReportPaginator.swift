@@ -5,8 +5,6 @@ import Foundation
 enum PDFItem: Equatable {
     case header
     case sectionTitle(String)
-    case taskHeader
-    case taskRow(Report.TaskLine)
     case detailHeader
     case detailRow(Report.Row)
     case summary
@@ -15,8 +13,8 @@ enum PDFItem: Equatable {
         switch self {
         case .header: 130
         case .sectionTitle: 34
-        case .taskHeader, .detailHeader: 22
-        case .taskRow, .detailRow: 20
+        case .detailHeader: 22
+        case .detailRow: 20
         case .summary: 110
         }
     }
@@ -31,9 +29,7 @@ enum ReportPaginator {
     struct Margins { let top, leading, bottom, trailing: CGFloat }
 
     static func items(for report: Report) -> [PDFItem] {
-        var items: [PDFItem] = [.header, .sectionTitle("Hodiny podle úkolů"), .taskHeader]
-        items += report.taskLines.map(PDFItem.taskRow)
-        items += [.sectionTitle("Detail záznamů"), .detailHeader]
+        var items: [PDFItem] = [.header, .sectionTitle("Detail záznamů"), .detailHeader]
         items += report.rows.map(PDFItem.detailRow)
         items.append(.summary)
         return items
@@ -55,7 +51,7 @@ enum ReportPaginator {
             var needed = item.height
             switch item {
             case .sectionTitle: needed += (items[safe: index + 1]?.height ?? 0) + (items[safe: index + 2]?.height ?? 0)
-            case .taskHeader, .detailHeader: needed += items[safe: index + 1]?.height ?? 0
+            case .detailHeader: needed += items[safe: index + 1]?.height ?? 0
             default: break
             }
             if used + needed > contentHeight, used > 0 { newPage() }

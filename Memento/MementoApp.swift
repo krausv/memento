@@ -11,7 +11,7 @@ struct MementoApp: App {
         let isTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
         do {
             container = try ModelContainer(
-                for: Project.self, ProjectTask.self, TimeEntry.self,
+                for: Project.self, TimeEntry.self,
                 configurations: ModelConfiguration(isStoredInMemoryOnly: isTesting)
             )
         } catch {

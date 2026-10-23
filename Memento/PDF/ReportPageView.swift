@@ -19,7 +19,7 @@ struct ReportPageView: View {
     let pageCount: Int
     let generatedAt: Date
 
-    private static let columns: [CGFloat] = [70, 120, 170, 100, 55]
+    private static let columns: [CGFloat] = [70, 290, 100, 55]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -49,15 +49,11 @@ struct ReportPageView: View {
         case .sectionTitle(let title):
             Text(title).font(.system(size: 13, weight: .semibold)).frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 12)
-        case .taskHeader:
-            tableRow([("Úkol", .leading), ("Hodiny", .trailing)], widths: [415, 100], bold: true)
-        case .taskRow(let line):
-            tableRow([(line.taskName, .leading), (CzFormat.hours(seconds: line.seconds), .trailing)], widths: [415, 100])
         case .detailHeader:
-            tableRow(detailCells(["Datum", "Úkol", "Poznámka", "Od–do", "Trvání"]), widths: Self.columns, bold: true)
+            tableRow(detailCells(["Datum", "Poznámka", "Od–do", "Trvání"]), widths: Self.columns, bold: true)
         case .detailRow(let row):
             tableRow(detailCells([
-                CzFormat.date(row.start), row.taskName, row.note ?? "",
+                CzFormat.date(row.start), row.note ?? "",
                 CzFormat.timeRange(start: row.start, end: row.end), CzFormat.hours(seconds: row.seconds),
             ]), widths: Self.columns)
         case .summary: summary

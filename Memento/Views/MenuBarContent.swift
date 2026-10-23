@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 struct MenuBarLabel: View {
@@ -5,7 +6,11 @@ struct MenuBarLabel: View {
 
     var body: some View {
         if timer.runningEntry != nil {
-            Label(timer.elapsedText, systemImage: "timer")
+            // Label by v liště ukázal jen ikonu; text vedle ikony zajistí až HStack.
+            HStack(spacing: 4) {
+                Image(systemName: "timer")
+                Text(timer.elapsedText).monospacedDigit()
+            }
         } else {
             Image(systemName: "timer")
         }
@@ -15,21 +20,26 @@ struct MenuBarLabel: View {
 struct MenuBarContent: View {
     @Environment(TimerController.self) private var timer
     @Environment(\.openWindow) private var openWindow
+    // Dotazy drží menu aktuální při změně dat; samotný výběr dělá selectableProjects.
+    @Query private var projects: [Project]
+    @Query private var entries: [TimeEntry]
 
     var body: some View {
         if let running = timer.runningEntry {
-            Text("\(running.task?.displayName ?? "Úkol") · \(timer.elapsedText)")
+            Text("\(running.project?.name ?? "Projekt") · \(timer.elapsedText)")
             Button("Stop") { try? timer.stop() }
         } else {
             Text("Časovač neběží")
         }
 
-        let recent = timer.recentTasks(limit: 5)
-        if !recent.isEmpty {
-            Divider()
-            Text("Poslední úkoly")
-            ForEach(recent, id: \.id) { task in
-                Button(task.displayName) { _ = try? timer.start(task) }
+        let choices = timer.selectableProjects()
+        Divider()
+        if choices.isEmpty {
+            Text("Nejdřív vytvoř projekt v okně Memento")
+        } else {
+            Text("Spustit projekt")
+            ForEach(choices, id: \.id) { project in
+                Button(project.name) { _ = try? timer.start(project) }
             }
         }
 

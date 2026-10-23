@@ -9,7 +9,7 @@ final class TimerControllerTests: XCTestCase {
 
     override func setUp() async throws {
         container = try ModelContainer(
-            for: Project.self, ProjectTask.self, TimeEntry.self,
+            for: Project.self, TimeEntry.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
     }
@@ -18,18 +18,16 @@ final class TimerControllerTests: XCTestCase {
         TimerController(context: container.mainContext, clock: { [unowned self] in self.time })
     }
 
-    private func makeTask(_ name: String) -> ProjectTask {
-        let project = Project(name: "P \(name)", hourlyRate: 1000)
-        let task = ProjectTask(name: name, project: project)
+    private func makeProject(_ name: String) -> Project {
+        let project = Project(name: name, hourlyRate: 1000)
         container.mainContext.insert(project)
-        container.mainContext.insert(task)
-        return task
+        return project
     }
 
     func testStartAndStop() throws {
         let controller = makeController()
-        let task = makeTask("A")
-        let entry = try controller.start(task)
+        let project = makeProject("A")
+        let entry = try controller.start(project)
         XCTAssertTrue(controller.runningEntry === entry)
         XCTAssertNil(entry.end)
 
@@ -41,7 +39,7 @@ final class TimerControllerTests: XCTestCase {
 
     func testStartingSecondTimerStopsFirst() throws {
         let controller = makeController()
-        let a = makeTask("A"), b = makeTask("B")
+        let a = makeProject("A"), b = makeProject("B")
         let first = try controller.start(a)
         time.addTimeInterval(600)
         let second = try controller.start(b)
@@ -54,8 +52,8 @@ final class TimerControllerTests: XCTestCase {
     }
 
     func testRunningTimerSurvivesRestart() throws {
-        let task = makeTask("A")
-        let entry = try makeController().start(task)
+        let project = makeProject("A")
+        let entry = try makeController().start(project)
         let afterRestart = makeController()
         XCTAssertTrue(afterRestart.runningEntry === entry)
         time.addTimeInterval(120)
@@ -63,15 +61,17 @@ final class TimerControllerTests: XCTestCase {
         XCTAssertEqual(afterRestart.elapsed, 120)
     }
 
-    func testRecentTasksAreUniqueAndSkipArchived() throws {
+    func testSelectableProjectsOrderedByRecentUseAndSkipArchived() throws {
         let controller = makeController()
-        let a = makeTask("A"), b = makeTask("B"), c = makeTask("C")
-        for task in [a, b, a, c] {
-            try controller.start(task)
+        let a = makeProject("A"), b = makeProject("B"), c = makeProject("C"), d = makeProject("D")
+        for project in [a, b, a, c] {
+            try controller.start(project)
             time.addTimeInterval(60)
         }
         try controller.stop()
         c.isArchived = true
-        XCTAssertEqual(controller.recentTasks().map(\.name), ["A", "B"])
+        XCTAssertEqual(controller.selectableProjects().map(\.name), ["A", "B", "D"])
+        XCTAssertFalse(controller.selectableProjects().contains { $0 === c })
+        _ = d
     }
 }

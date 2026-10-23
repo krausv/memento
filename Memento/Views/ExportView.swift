@@ -17,7 +17,7 @@ struct ExportView: View {
     }
 
     private func entryCount(_ project: Project) -> Int {
-        project.tasks.flatMap(\.entries).filter { $0.end != nil && month.contains($0.start) }.count
+        project.entries.filter { $0.end != nil && month.contains($0.start) }.count
     }
 
     var body: some View {

@@ -60,22 +60,15 @@ struct ReportMonth: Hashable, Comparable {
 
 /// Vstup pro `ReportBuilder` – čistá hodnota bez závislosti na SwiftData.
 struct ReportEntry: Equatable {
-    var taskName: String
     var note: String?
     var start: Date
     var end: Date
 }
 
 struct Report: Equatable {
-    struct TaskLine: Equatable {
-        let taskName: String
-        let seconds: Int
-    }
-
     struct Row: Equatable {
         let start: Date
         let end: Date
-        let taskName: String
         let note: String?
         /// Již po zaokrouhlení nastaveném v exportu.
         let seconds: Int
@@ -86,7 +79,6 @@ struct Report: Equatable {
     let month: ReportMonth
     let currency: String
     let hourlyRate: Decimal
-    let taskLines: [TaskLine]
     let rows: [Row]
     let totalSeconds: Int
     /// Přesný součet sekund × sazba, zaokrouhleno na haléře až na konci.
@@ -119,17 +111,10 @@ struct ReportBuilder {
                 return Report.Row(
                     start: entry.start,
                     end: entry.end,
-                    taskName: entry.taskName,
                     note: entry.note,
                     seconds: rounding.apply(toSeconds: raw)
                 )
             }
-
-        var secondsByTask: [String: Int] = [:]
-        for row in rows { secondsByTask[row.taskName, default: 0] += row.seconds }
-        let taskLines = secondsByTask
-            .map { Report.TaskLine(taskName: $0.key, seconds: $0.value) }
-            .sorted { $0.taskName.localizedStandardCompare($1.taskName) == .orderedAscending }
 
         let total = rows.reduce(0) { $0 + $1.seconds }
         let amount = (Decimal(total) * hourlyRate / 3600).rounded(scale: 2)
@@ -140,7 +125,6 @@ struct ReportBuilder {
             month: month,
             currency: currency,
             hourlyRate: hourlyRate,
-            taskLines: taskLines,
             rows: rows,
             totalSeconds: total,
             amount: amount

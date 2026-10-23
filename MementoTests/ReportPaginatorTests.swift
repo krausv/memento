@@ -5,7 +5,7 @@ final class ReportPaginatorTests: XCTestCase {
     func testLongTableSplitsIntoPagesThatFit() {
         let start = Calendar.prague.date(from: DateComponents(year: 2026, month: 10, day: 1, hour: 8))!
         let entries = (0..<120).map {
-            ReportEntry(taskName: "Úkol \($0 % 7)", note: nil,
+            ReportEntry(note: nil,
                         start: start.addingTimeInterval(Double($0) * 7200),
                         end: start.addingTimeInterval(Double($0) * 7200 + 3600))
         }

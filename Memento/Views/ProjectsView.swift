@@ -5,15 +5,11 @@ struct ProjectsView: View {
     private enum Sheet: Identifiable {
         case newProject
         case editProject(Project)
-        case newTask(Project)
-        case editTask(ProjectTask)
 
         var id: String {
             switch self {
             case .newProject: "newProject"
             case .editProject(let p): "editProject-\(p.id)"
-            case .newTask(let p): "newTask-\(p.id)"
-            case .editTask(let t): "editTask-\(t.id)"
             }
         }
     }
@@ -37,16 +33,7 @@ struct ProjectsView: View {
                                        description: Text("Vytvoř první projekt tlačítkem „Nový projekt“."))
             }
             ForEach(visibleProjects) { project in
-                Section {
-                    ForEach(visibleTasks(of: project)) { task in
-                        taskRow(task)
-                    }
-                    Button("Přidat úkol", systemImage: "plus") { sheet = .newTask(project) }
-                        .buttonStyle(.borderless)
-                        .disabled(project.isArchived)
-                } header: {
-                    projectHeader(project)
-                }
+                projectRow(project)
             }
         }
         .navigationTitle("Projekty")
@@ -62,8 +49,6 @@ struct ProjectsView: View {
             switch sheet {
             case .newProject: ProjectForm(project: nil)
             case .editProject(let project): ProjectForm(project: project)
-            case .newTask(let project): TaskForm(project: project, task: nil)
-            case .editTask(let task): TaskForm(project: task.project!, task: task)
             }
         }
         .alert(
@@ -74,18 +59,16 @@ struct ProjectsView: View {
             Button("Smazat", role: .destructive) { delete(project) }
             Button("Zrušit", role: .cancel) {}
         } message: { _ in
-            Text("Smažou se i všechny jeho úkoly a záznamy času. Raději projekt archivuj.")
+            Text("Smažou se i všechny jeho záznamy času. Raději projekt archivuj.")
         }
     }
 
-    private func visibleTasks(of project: Project) -> [ProjectTask] {
-        project.tasks
-            .filter { showArchived || !$0.isArchived }
-            .sorted { $0.createdAt < $1.createdAt }
-    }
-
-    private func projectHeader(_ project: Project) -> some View {
+    private func projectRow(_ project: Project) -> some View {
         HStack {
+            Button("Spustit", systemImage: "play.fill") { _ = try? timer.start(project) }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .disabled(project.isArchived)
             VStack(alignment: .leading) {
                 Text(project.name).font(.headline)
                 Text([project.client, "\(CzFormat.decimal(project.hourlyRate)) \(project.currency)/h"]
@@ -94,6 +77,9 @@ struct ProjectsView: View {
             }
             if project.isArchived { Text("archivováno").font(.caption).foregroundStyle(.secondary) }
             Spacer()
+            if timer.runningEntry?.project === project {
+                Text(timer.elapsedText).monospacedDigit().foregroundStyle(.tint)
+            }
             Menu("Akce", systemImage: "ellipsis.circle") {
                 Button("Upravit") { sheet = .editProject(project) }
                 Button(project.isArchived ? "Obnovit z archivu" : "Archivovat") { toggleArchive(project) }
@@ -103,28 +89,6 @@ struct ProjectsView: View {
             .menuStyle(.borderlessButton)
             .labelStyle(.iconOnly)
             .fixedSize()
-        }
-    }
-
-    private func taskRow(_ task: ProjectTask) -> some View {
-        HStack {
-            Button("Spustit", systemImage: "play.fill") { _ = try? timer.start(task) }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .disabled(!task.isSelectable)
-            Text(task.name)
-            if task.isArchived { Text("archivováno").font(.caption).foregroundStyle(.secondary) }
-            Spacer()
-            if timer.runningEntry?.task === task {
-                Text(timer.elapsedText).monospacedDigit().foregroundStyle(.tint)
-            }
-        }
-        .contextMenu {
-            Button("Upravit") { sheet = .editTask(task) }
-            Button(task.isArchived ? "Obnovit z archivu" : "Archivovat") {
-                task.isArchived.toggle()
-                try? context.save()
-            }
         }
     }
 
@@ -202,47 +166,6 @@ struct ProjectForm: View {
         } else {
             context.insert(Project(name: trimmedName, client: clientValue.isEmpty ? nil : clientValue,
                                    hourlyRate: rate, currency: currencyValue))
-        }
-        try? context.save()
-        dismiss()
-    }
-}
-
-struct TaskForm: View {
-    @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
-
-    let project: Project
-    let task: ProjectTask?
-    @State private var name: String
-
-    init(project: Project, task: ProjectTask?) {
-        self.project = project
-        self.task = task
-        _name = State(initialValue: task?.name ?? "")
-    }
-
-    private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-    var body: some View {
-        Form {
-            Text(project.name).foregroundStyle(.secondary)
-            TextField("Název úkolu", text: $name)
-        }
-        .formStyle(.grouped)
-        .frame(width: 380)
-        .navigationTitle(task == nil ? "Nový úkol" : "Upravit úkol")
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("Zrušit") { dismiss() } }
-            ToolbarItem(placement: .confirmationAction) { Button("Uložit", action: save).disabled(trimmedName.isEmpty) }
-        }
-    }
-
-    private func save() {
-        if let task {
-            task.name = trimmedName
-        } else {
-            context.insert(ProjectTask(name: trimmedName, project: project))
         }
         try? context.save()
         dismiss()

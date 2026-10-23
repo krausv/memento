@@ -46,12 +46,12 @@ final class TimerController {
     }
 
     @discardableResult
-    func start(_ task: ProjectTask) throws -> TimeEntry {
+    func start(_ project: Project) throws -> TimeEntry {
         let moment = clock()
         if let running = runningEntry {
             running.end = max(moment, running.start)
         }
-        let entry = TimeEntry(task: task, start: moment)
+        let entry = TimeEntry(project: project, start: moment)
         context.insert(entry)
         try context.save()
         refresh()
@@ -65,19 +65,16 @@ final class TimerController {
         refresh()
     }
 
-    /// Naposledy použité aktivní úkoly (unikátní, nejnovější první).
-    func recentTasks(limit: Int = 5) -> [ProjectTask] {
-        var descriptor = FetchDescriptor<TimeEntry>(sortBy: [SortDescriptor(\.start, order: .reverse)])
-        descriptor.fetchLimit = 300
-        let entries = (try? context.fetch(descriptor)) ?? []
-        var seen = Set<UUID>()
-        var result: [ProjectTask] = []
-        for entry in entries {
-            guard let task = entry.task, task.isSelectable, seen.insert(task.id).inserted else { continue }
-            result.append(task)
-            if result.count == limit { break }
+    /// Aktivní projekty, naposledy použité první; projekty bez záznamů jsou na konci.
+    func selectableProjects() -> [Project] {
+        let projects = (try? context.fetch(FetchDescriptor<Project>(sortBy: [SortDescriptor(\.createdAt)]))) ?? []
+        var lastUse: [UUID: Date] = [:]
+        for project in projects {
+            lastUse[project.id] = project.entries.map(\.start).max()
         }
-        return result
+        return projects
+            .filter { !$0.isArchived }
+            .sorted { (lastUse[$0.id] ?? .distantPast) > (lastUse[$1.id] ?? .distantPast) }
     }
 
     private func updateTicker() {
