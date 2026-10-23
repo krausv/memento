@@ -55,7 +55,7 @@ struct ReportPageView: View {
             tableRow(detailCells([
                 CzFormat.date(row.start), row.note ?? "",
                 CzFormat.timeRange(start: row.start, end: row.end), CzFormat.hours(seconds: row.seconds),
-            ]), widths: Self.columns)
+            ]), widths: Self.columns, multiline: true)
         case .summary: summary
         }
     }
@@ -64,18 +64,20 @@ struct ReportPageView: View {
         texts.enumerated().map { ($1, $0 == texts.count - 1 ? .trailing : .leading) }
     }
 
-    private func tableRow(_ cells: [(String, Alignment)], widths: [CGFloat], bold: Bool = false) -> some View {
-        HStack(spacing: 0) {
+    private func tableRow(_ cells: [(String, Alignment)], widths: [CGFloat], bold: Bool = false, multiline: Bool = false) -> some View {
+        HStack(alignment: .top, spacing: 0) {
             ForEach(Array(cells.enumerated()), id: \.offset) { index, cell in
                 Text(cell.0)
                     .fontWeight(bold ? .semibold : .regular)
-                    .lineLimit(1)
+                    .lineLimit(multiline ? nil : 1)
                     .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: multiline)
                     .padding(.trailing, index < cells.count - 1 ? 6 : 0)
                     .frame(width: widths[index], alignment: cell.1)
             }
         }
-        .frame(maxHeight: .infinity)
+        .padding(.top, 4)
+        .frame(maxHeight: .infinity, alignment: .top)
         .overlay(alignment: .bottom) { Rectangle().fill(Color.black.opacity(bold ? 0.6 : 0.15)).frame(height: 0.5) }
     }
 

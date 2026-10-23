@@ -51,7 +51,7 @@ struct EntriesView: View {
             VStack(alignment: .leading) {
                 Text(entry.project?.name ?? "—")
                 if let note = entry.note, !note.isEmpty {
-                    Text(note).font(.caption).foregroundStyle(.secondary)
+                    Text(note).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                 }
             }
             Spacer()
@@ -116,14 +116,17 @@ struct EntryForm: View {
             }
             DatePicker("Od", selection: $start)
             DatePicker("Do", selection: $end)
-            TextField("Poznámka", text: $note, axis: .vertical)
+            VStack(alignment: .leading) {
+                Text("Poznámka")
+                BulletTextEditor(text: $note).frame(minHeight: 120)
+            }
             if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
         }
         .environment(\.locale, CzFormat.locale)
         .environment(\.calendar, .prague)
         .environment(\.timeZone, Calendar.prague.timeZone)
         .formStyle(.grouped)
-        .frame(width: 440)
+        .frame(width: 480)
         .navigationTitle(entry == nil ? "Nový záznam" : "Upravit záznam")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Zrušit") { dismiss() } }
@@ -145,14 +148,14 @@ struct EntryForm: View {
             errorMessage = error.localizedDescription
             return
         }
-        let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedNote = BulletText.clean(note)
         if let entry {
             entry.project = project
             entry.start = start
             entry.end = end
-            entry.note = trimmedNote.isEmpty ? nil : trimmedNote
+            entry.note = cleanedNote
         } else {
-            context.insert(TimeEntry(project: project, start: start, end: end, note: trimmedNote.isEmpty ? nil : trimmedNote))
+            context.insert(TimeEntry(project: project, start: start, end: end, note: cleanedNote))
         }
         try? context.save()
         dismiss()
@@ -175,10 +178,10 @@ struct NoteForm: View {
     var body: some View {
         Form {
             Text(entry.project?.name ?? "").foregroundStyle(.secondary)
-            TextField("Poznámka", text: $note, axis: .vertical)
+            BulletTextEditor(text: $note, autofocus: true).frame(minHeight: 160)
         }
         .formStyle(.grouped)
-        .frame(width: 400)
+        .frame(width: 460)
         .navigationTitle("Poznámka")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Zrušit") { dismiss() } }
@@ -187,8 +190,7 @@ struct NoteForm: View {
     }
 
     private func save() {
-        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        entry.note = trimmed.isEmpty ? nil : trimmed
+        entry.note = BulletText.clean(note)
         try? context.save()
         dismiss()
     }

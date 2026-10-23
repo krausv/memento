@@ -14,9 +14,19 @@ enum PDFItem: Equatable {
         case .header: 130
         case .sectionTitle: 34
         case .detailHeader: 22
-        case .detailRow: 20
+        case .detailRow(let row): Self.rowHeight(forNote: row.note)
         case .summary: 110
         }
+    }
+}
+
+extension PDFItem {
+    /// Odhad výšky řádku s víceřádkovou poznámkou; počítá konzervativně, aby se text neořízl.
+    static func rowHeight(forNote note: String?) -> CGFloat {
+        let charsPerLine = 48
+        let lines = (note ?? "").components(separatedBy: .newlines)
+            .reduce(0) { $0 + max(1, ($1.count + charsPerLine - 1) / charsPerLine) }
+        return max(20, 8 + 12.5 * CGFloat(max(lines, 1)))
     }
 }
 

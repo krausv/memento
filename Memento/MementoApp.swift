@@ -4,11 +4,13 @@ import SwiftUI
 @main
 struct MementoApp: App {
     private let container: ModelContainer
-    @State private var timer: TimerController
+    private let timer: TimerController
+    private let statusItem: StatusItemController?
 
     init() {
-        // Testy běží v hostitelské aplikaci – nesmí sahat na uživatelská data.
+        // Testy běží v hostitelské aplikaci – nesmí sahat na uživatelská data ani na lištu.
         let isTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        let container: ModelContainer
         do {
             container = try ModelContainer(
                 for: Project.self, TimeEntry.self,
@@ -17,24 +19,14 @@ struct MementoApp: App {
         } catch {
             fatalError("Nepodařilo se otevřít úložiště: \(error)")
         }
-        _timer = State(initialValue: TimerController(context: container.mainContext))
+        let timer = MainActor.assumeIsolated { TimerController(context: container.mainContext) }
+        self.container = container
+        self.timer = timer
+        statusItem = isTesting ? nil : MainActor.assumeIsolated { StatusItemController(timer: timer, container: container) }
     }
 
+    // Ikonu v liště i okna řídí StatusItemController; SwiftUI scéna je jen formální.
     var body: some Scene {
-        MenuBarExtra {
-            MenuBarContent()
-                .environment(timer)
-                .modelContainer(container)
-        } label: {
-            MenuBarLabel()
-                .environment(timer)
-        }
-
-        Window("Memento", id: MainWindow.id) {
-            MainWindow()
-                .environment(timer)
-                .modelContainer(container)
-                .frame(minWidth: 760, minHeight: 480)
-        }
+        Settings { EmptyView() }
     }
 }

@@ -1,0 +1,156 @@
+import AppKit
+import Observation
+import SwiftData
+import SwiftUI
+
+/// Ikona v liště. MenuBarExtra nerozliší levé a pravé kliknutí, proto vlastní NSStatusItem:
+/// levé tlačítko spustí časovač (nebo při běžícím otevře poznámku), pravé otevře menu.
+@MainActor
+final class StatusItemController: NSObject {
+    private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let timer: TimerController
+    private let container: ModelContainer
+    private var mainWindow: NSWindow?
+    private var noteWindow: NSWindow?
+
+    init(timer: TimerController, container: ModelContainer) {
+        self.timer = timer
+        self.container = container
+        super.init()
+        if let button = item.button {
+            button.image = NSImage(systemSymbolName: "timer", accessibilityDescription: "Memento")
+            button.imagePosition = .imageLeading
+            button.target = self
+            button.action = #selector(clicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
+        observeTimer()
+    }
+
+    // MARK: Popisek
+
+    /// Překreslí popisek a znovu se přihlásí k odběru změn (každou sekundu mění `timer.now`).
+    private func observeTimer() {
+        withObservationTracking {
+            updateLabel()
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeTimer() }
+        }
+    }
+
+    private func updateLabel() {
+        guard let button = item.button else { return }
+        if timer.runningEntry != nil {
+            button.attributedTitle = NSAttributedString(
+                string: " " + timer.elapsedText,
+                attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)]
+            )
+        } else {
+            button.attributedTitle = NSAttributedString(string: "")
+        }
+    }
+
+    // MARK: Kliknutí
+
+    @objc private func clicked() {
+        let event = NSApp.currentEvent
+        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
+            showMenu()
+        } else if let running = timer.runningEntry {
+            showNoteWindow(for: running)
+        } else if let project = timer.selectableProjects().first {
+            _ = try? timer.start(project)
+        } else {
+            showMainWindow()
+        }
+    }
+
+    private func showMenu() {
+        let menu = NSMenu()
+        if let running = timer.runningEntry {
+            menu.addItem(label("\(running.project?.name ?? "Projekt") · \(timer.elapsedText)"))
+            menu.addItem(ActionItem("Poznámka…") { [weak self] in self?.showNoteWindow(for: running) })
+            menu.addItem(ActionItem("Stop") { [weak self] in try? self?.timer.stop() })
+        } else {
+            menu.addItem(label("Časovač neběží"))
+        }
+
+        menu.addItem(.separator())
+        let projects = timer.selectableProjects()
+        if projects.isEmpty {
+            menu.addItem(label("Nejdřív vytvoř projekt v okně Memento"))
+        } else {
+            menu.addItem(label("Spustit projekt"))
+            for project in projects {
+                menu.addItem(ActionItem(project.name) { [weak self] in _ = try? self?.timer.start(project) })
+            }
+        }
+
+        menu.addItem(.separator())
+        menu.addItem(ActionItem("Otevřít Memento") { [weak self] in self?.showMainWindow() })
+        menu.addItem(ActionItem("Ukončit", key: "q") { NSApp.terminate(nil) })
+
+        // Menu se k položce připojí jen na dobu zobrazení, jinak by pohlcovalo i levé kliknutí.
+        item.menu = menu
+        item.button?.performClick(nil)
+        item.menu = nil
+    }
+
+    private func label(_ title: String) -> NSMenuItem {
+        let menuItem = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        menuItem.isEnabled = false
+        return menuItem
+    }
+
+    // MARK: Okna
+
+    func showMainWindow() {
+        if mainWindow == nil {
+            let root = MainWindow()
+                .environment(timer)
+                .modelContainer(container)
+                .frame(minWidth: 760, minHeight: 480)
+            let window = NSWindow(contentViewController: NSHostingController(rootView: root))
+            window.title = "Memento"
+            window.isReleasedWhenClosed = false
+            window.setContentSize(NSSize(width: 900, height: 580))
+            window.setFrameAutosaveName("MementoMainWindow")
+            mainWindow = window
+        }
+        present(mainWindow)
+    }
+
+    private func showNoteWindow(for entry: TimeEntry) {
+        noteWindow?.close()
+        let root = QuickNoteView(entry: entry) { [weak self] in self?.noteWindow?.close() }
+            .environment(timer)
+            .modelContainer(container)
+        let window = NSWindow(contentViewController: NSHostingController(rootView: root))
+        window.title = "Poznámka"
+        window.styleMask = [.titled, .closable]
+        window.isReleasedWhenClosed = false
+        window.level = .floating
+        window.center()
+        noteWindow = window
+        present(window)
+    }
+
+    private func present(_ window: NSWindow?) {
+        NSApp.activate()
+        window?.makeKeyAndOrderFront(nil)
+    }
+}
+
+private final class ActionItem: NSMenuItem {
+    private let handler: () -> Void
+
+    init(_ title: String, key: String = "", handler: @escaping () -> Void) {
+        self.handler = handler
+        super.init(title: title, action: #selector(fire), keyEquivalent: key)
+        target = self
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    @objc private func fire() { handler() }
+}
