@@ -1,0 +1,96 @@
+import Foundation
+import Observation
+import SwiftData
+
+/// Start/stop/přepnutí časovače. Běžící záznam je uložen hned při startu (`end == nil`),
+/// takže přežije ukončení aplikace i restart; po spuštění se jen znovu načte.
+@MainActor
+@Observable
+final class TimerController {
+    private let context: ModelContext
+    private let clock: () -> Date
+    private var ticker: Timer?
+
+    private(set) var runningEntry: TimeEntry?
+    /// Aktualizuje se každou sekundu, dokud časovač běží.
+    private(set) var now: Date
+
+    init(context: ModelContext, clock: @escaping () -> Date = Date.init) {
+        self.context = context
+        self.clock = clock
+        self.now = clock()
+        refresh()
+    }
+
+    var elapsed: TimeInterval {
+        runningEntry?.duration(at: now) ?? 0
+    }
+
+    var elapsedText: String { CzFormat.elapsed(elapsed) }
+
+    /// Znovu načte běžící záznam z úložiště. Kdyby jich běželo víc (poškozená data),
+    /// starší se ukončí v okamžiku začátku následujícího.
+    func refresh() {
+        let descriptor = FetchDescriptor<TimeEntry>(
+            predicate: #Predicate { $0.end == nil },
+            sortBy: [SortDescriptor(\.start)]
+        )
+        let open = (try? context.fetch(descriptor)) ?? []
+        if open.count > 1 {
+            for (older, newer) in zip(open, open.dropFirst()) { older.end = newer.start }
+            try? context.save()
+        }
+        runningEntry = open.last
+        now = clock()
+        updateTicker()
+    }
+
+    @discardableResult
+    func start(_ task: ProjectTask) throws -> TimeEntry {
+        let moment = clock()
+        if let running = runningEntry {
+            running.end = max(moment, running.start)
+        }
+        let entry = TimeEntry(task: task, start: moment)
+        context.insert(entry)
+        try context.save()
+        refresh()
+        return entry
+    }
+
+    func stop() throws {
+        guard let running = runningEntry else { return }
+        running.end = max(clock(), running.start)
+        try context.save()
+        refresh()
+    }
+
+    /// Naposledy použité aktivní úkoly (unikátní, nejnovější první).
+    func recentTasks(limit: Int = 5) -> [ProjectTask] {
+        var descriptor = FetchDescriptor<TimeEntry>(sortBy: [SortDescriptor(\.start, order: .reverse)])
+        descriptor.fetchLimit = 300
+        let entries = (try? context.fetch(descriptor)) ?? []
+        var seen = Set<UUID>()
+        var result: [ProjectTask] = []
+        for entry in entries {
+            guard let task = entry.task, task.isSelectable, seen.insert(task.id).inserted else { continue }
+            result.append(task)
+            if result.count == limit { break }
+        }
+        return result
+    }
+
+    private func updateTicker() {
+        guard runningEntry != nil else {
+            ticker?.invalidate()
+            ticker = nil
+            return
+        }
+        guard ticker == nil else { return }
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.now = self?.clock() ?? Date() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        ticker = timer
+    }
+}

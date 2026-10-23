@@ -1,0 +1,149 @@
+import Foundation
+
+enum RoundingOption: Int, CaseIterable, Identifiable {
+    case none = 0
+    case five = 5
+    case fifteen = 15
+    case thirty = 30
+
+    var id: Int { rawValue }
+    var minutes: Int { rawValue }
+
+    var title: String {
+        switch self {
+        case .none: "Žádné"
+        case .five: "Na 5 minut nahoru"
+        case .fifteen: "Na 15 minut nahoru"
+        case .thirty: "Na 30 minut nahoru"
+        }
+    }
+
+    /// Zaokrouhlí počet sekund nahoru na násobek zvolené jednotky.
+    func apply(toSeconds seconds: Int) -> Int {
+        guard minutes > 0, seconds > 0 else { return seconds }
+        let step = minutes * 60
+        return (seconds + step - 1) / step * step
+    }
+}
+
+struct ReportMonth: Hashable, Comparable {
+    let year: Int
+    let month: Int
+
+    static func < (lhs: ReportMonth, rhs: ReportMonth) -> Bool {
+        (lhs.year, lhs.month) < (rhs.year, rhs.month)
+    }
+
+    init(year: Int, month: Int) {
+        self.year = year
+        self.month = month
+    }
+
+    init(containing date: Date, calendar: Calendar = .prague) {
+        let parts = calendar.dateComponents([.year, .month], from: date)
+        self.init(year: parts.year!, month: parts.month!)
+    }
+
+    /// Záznam patří do měsíce, ve kterém začal.
+    func contains(_ start: Date, calendar: Calendar = .prague) -> Bool {
+        ReportMonth(containing: start, calendar: calendar) == self
+    }
+
+    func previous() -> ReportMonth {
+        month == 1 ? ReportMonth(year: year - 1, month: 12) : ReportMonth(year: year, month: month - 1)
+    }
+
+    var firstDay: Date {
+        Calendar.prague.date(from: DateComponents(year: year, month: month, day: 1))!
+    }
+}
+
+/// Vstup pro `ReportBuilder` – čistá hodnota bez závislosti na SwiftData.
+struct ReportEntry: Equatable {
+    var taskName: String
+    var note: String?
+    var start: Date
+    var end: Date
+}
+
+struct Report: Equatable {
+    struct TaskLine: Equatable {
+        let taskName: String
+        let seconds: Int
+    }
+
+    struct Row: Equatable {
+        let start: Date
+        let end: Date
+        let taskName: String
+        let note: String?
+        /// Již po zaokrouhlení nastaveném v exportu.
+        let seconds: Int
+    }
+
+    let projectName: String
+    let client: String?
+    let month: ReportMonth
+    let currency: String
+    let hourlyRate: Decimal
+    let taskLines: [TaskLine]
+    let rows: [Row]
+    let totalSeconds: Int
+    /// Přesný součet sekund × sazba, zaokrouhleno na haléře až na konci.
+    let amount: Decimal
+
+    static func hours(fromSeconds seconds: Int) -> Decimal {
+        (Decimal(seconds) / 3600).rounded(scale: 2)
+    }
+
+    var totalHours: Decimal { Report.hours(fromSeconds: totalSeconds) }
+}
+
+struct ReportBuilder {
+    var calendar: Calendar = .prague
+
+    func build(
+        projectName: String,
+        client: String?,
+        currency: String,
+        hourlyRate: Decimal,
+        month: ReportMonth,
+        rounding: RoundingOption,
+        entries: [ReportEntry]
+    ) -> Report {
+        let rows = entries
+            .filter { month.contains($0.start, calendar: calendar) }
+            .sorted { $0.start < $1.start }
+            .map { entry -> Report.Row in
+                let raw = max(0, Int(entry.end.timeIntervalSince(entry.start).rounded()))
+                return Report.Row(
+                    start: entry.start,
+                    end: entry.end,
+                    taskName: entry.taskName,
+                    note: entry.note,
+                    seconds: rounding.apply(toSeconds: raw)
+                )
+            }
+
+        var secondsByTask: [String: Int] = [:]
+        for row in rows { secondsByTask[row.taskName, default: 0] += row.seconds }
+        let taskLines = secondsByTask
+            .map { Report.TaskLine(taskName: $0.key, seconds: $0.value) }
+            .sorted { $0.taskName.localizedStandardCompare($1.taskName) == .orderedAscending }
+
+        let total = rows.reduce(0) { $0 + $1.seconds }
+        let amount = (Decimal(total) * hourlyRate / 3600).rounded(scale: 2)
+
+        return Report(
+            projectName: projectName,
+            client: client,
+            month: month,
+            currency: currency,
+            hourlyRate: hourlyRate,
+            taskLines: taskLines,
+            rows: rows,
+            totalSeconds: total,
+            amount: amount
+        )
+    }
+}

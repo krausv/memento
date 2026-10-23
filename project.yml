@@ -1,0 +1,48 @@
+name: Pichacka
+options:
+  bundleIdPrefix: cz.memento
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "27.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    ENABLE_HARDENED_RUNTIME: YES
+targets:
+  Pichacka:
+    type: application
+    platform: macOS
+    sources:
+      - Pichacka
+    info:
+      path: Pichacka/Info.plist
+      properties:
+        CFBundleDisplayName: Píchačka
+        LSUIElement: true
+        LSApplicationCategoryType: public.app-category.productivity
+    settings:
+      base:
+        PRODUCT_NAME: Pichacka
+        PRODUCT_BUNDLE_IDENTIFIER: cz.memento.pichacka
+  PichackaTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - PichackaTests
+    dependencies:
+      - target: Pichacka
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cz.memento.pichacka.tests
+schemes:
+  Pichacka:
+    build:
+      targets:
+        Pichacka: all
+    test:
+      targets:
+        - PichackaTests
