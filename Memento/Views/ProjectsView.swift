@@ -108,7 +108,7 @@ struct ProjectsView: View {
 
     private func taskRow(_ task: ProjectTask) -> some View {
         HStack {
-            Button("Spustit", systemImage: "play.fill") { try? timer.start(task) }
+            Button("Spustit", systemImage: "play.fill") { _ = try? timer.start(task) }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
                 .disabled(!task.isSelectable)

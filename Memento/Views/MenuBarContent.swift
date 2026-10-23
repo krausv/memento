@@ -28,8 +28,8 @@ struct MenuBarContent: View {
         if !recent.isEmpty {
             Divider()
             Text("Poslední úkoly")
-            ForEach(recent) { task in
-                Button(task.displayName) { try? timer.start(task) }
+            ForEach(recent, id: \.id) { task in
+                Button(task.displayName) { _ = try? timer.start(task) }
             }
         }
 

@@ -38,6 +38,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: cz.memento.app.tests
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   Memento:
     build:

@@ -29,7 +29,7 @@ final class ReportBuilderTests: XCTestCase {
             entry("Vývoj", date(2026, 10, 6, 9), date(2026, 10, 6, 17)),
             entry("Schůzky", date(2026, 10, 6, 17), date(2026, 10, 6, 18)),
         ])
-        XCTAssertEqual(r.totalSeconds, 13.5 * 3600)
+        XCTAssertEqual(r.totalSeconds, 48600)
         XCTAssertEqual(r.totalHours, Decimal(string: "13.5"))
         XCTAssertEqual(r.amount, 20250)
         XCTAssertEqual(r.taskLines.map(\.taskName), ["Schůzky", "Vývoj"])
