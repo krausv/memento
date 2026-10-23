@@ -6,15 +6,18 @@ enum Notifications {
     enum Category: String {
         case notRunning = "reminder.notRunning"
         case longRunning = "reminder.longRunning"
+        case missingNote = "reminder.missingNote"
     }
 
     enum Action {
         static let startLast = "action.startLast"
         static let stop = "action.stop"
+        static let addNote = "action.addNote"
     }
 
     /// Volá se na hlavním vlákně po kliknutí na akci v oznámení.
-    @MainActor static var actionHandler: ((String) -> Void)?
+    /// Parametry: identifikátor akce a kategorie oznámení.
+    @MainActor static var actionHandler: ((String, String) -> Void)?
 
     private final class Delegate: NSObject, UNUserNotificationCenterDelegate {
         // Aplikace nemá ikonu v Docku a je často "aktivní", bez tohoto by se banner neukázal.
@@ -26,7 +29,8 @@ enum Notifications {
             _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse
         ) async {
             let action = response.actionIdentifier
-            await MainActor.run { Notifications.actionHandler?(action) }
+            let category = response.notification.request.content.categoryIdentifier
+            await MainActor.run { Notifications.actionHandler?(action, category) }
         }
     }
 
@@ -44,6 +48,11 @@ enum Notifications {
             UNNotificationCategory(
                 identifier: Category.longRunning.rawValue,
                 actions: [UNNotificationAction(identifier: Action.stop, title: "Zastavit")],
+                intentIdentifiers: []
+            ),
+            UNNotificationCategory(
+                identifier: Category.missingNote.rawValue,
+                actions: [UNNotificationAction(identifier: Action.addNote, title: "Doplnit poznámku")],
                 intentIdentifiers: []
             ),
         ])

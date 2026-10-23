@@ -164,6 +164,10 @@ final class StatusItemController: NSObject {
         present(mainWindow)
     }
 
+    func showNoteForRunningEntry() {
+        if let running = timer.runningEntry { showNoteWindow(for: running) }
+    }
+
     private func showNoteWindow(for entry: TimeEntry) {
         noteWindow?.close()
         let root = QuickNoteView(entry: entry) { [weak self] in self?.noteWindow?.close() }

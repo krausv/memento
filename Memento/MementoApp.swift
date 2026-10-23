@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 @main
 struct MementoApp: App {
@@ -25,6 +26,8 @@ struct MementoApp: App {
         let timer = MainActor.assumeIsolated { TimerController(context: container.mainContext) }
         self.container = container
         self.timer = timer
+        let statusItem = isTesting ? nil : MainActor.assumeIsolated { StatusItemController(timer: timer, container: container) }
+        self.statusItem = statusItem
         if isTesting {
             budgetMonitor = nil
             reminders = nil
@@ -45,15 +48,20 @@ struct MementoApp: App {
                     switch reminder {
                     case .notRunning: Notifications.post(title: title, body: body, category: .notRunning)
                     case .longRunning: Notifications.post(title: title, body: body, category: .longRunning)
+                    case .missingNote: Notifications.post(title: title, body: body, category: .missingNote)
                     }
                 }
             }
             MainActor.assumeIsolated {
                 scheduler.start()
-                Notifications.actionHandler = { [weak timer] action in
+                Notifications.actionHandler = { [weak timer, weak statusItem] action, category in
                     switch action {
                     case Notifications.Action.startLast: _ = try? timer?.startDefault()
                     case Notifications.Action.stop: try? timer?.stop()
+                    case Notifications.Action.addNote: statusItem?.showNoteForRunningEntry()
+                    case UNNotificationDefaultActionIdentifier:
+                        // Klik na samotné oznámení o chybějící poznámce rovnou otevře její zadání.
+                        if category == Notifications.Category.missingNote.rawValue { statusItem?.showNoteForRunningEntry() }
                     default: break
                     }
                 }
@@ -68,7 +76,6 @@ struct MementoApp: App {
             MainActor.assumeIsolated { backups.start() }
             autoBackup = backups
         }
-        statusItem = isTesting ? nil : MainActor.assumeIsolated { StatusItemController(timer: timer, container: container) }
     }
 
     // Ikonu v liště i okna řídí StatusItemController; SwiftUI scéna je jen formální.

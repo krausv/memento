@@ -9,17 +9,38 @@ struct ReminderSettings: Codable, Equatable {
     var workEndMinutes = 17 * 60
     var remindLongRunning = false
     var longRunningHours = 8
+    var remindMissingNote = false
+    var missingNoteMinutes = 15
+
+    init() {}
+
+    /// Vlastní dekódování, aby se při přidání nového pole nezahodilo už uložené nastavení.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = ReminderSettings()
+        remindNotRunning = try c.decodeIfPresent(Bool.self, forKey: .remindNotRunning) ?? d.remindNotRunning
+        workDays = try c.decodeIfPresent(Set<Int>.self, forKey: .workDays) ?? d.workDays
+        workStartMinutes = try c.decodeIfPresent(Int.self, forKey: .workStartMinutes) ?? d.workStartMinutes
+        workEndMinutes = try c.decodeIfPresent(Int.self, forKey: .workEndMinutes) ?? d.workEndMinutes
+        remindLongRunning = try c.decodeIfPresent(Bool.self, forKey: .remindLongRunning) ?? d.remindLongRunning
+        longRunningHours = try c.decodeIfPresent(Int.self, forKey: .longRunningHours) ?? d.longRunningHours
+        remindMissingNote = try c.decodeIfPresent(Bool.self, forKey: .remindMissingNote) ?? d.remindMissingNote
+        missingNoteMinutes = try c.decodeIfPresent(Int.self, forKey: .missingNoteMinutes) ?? d.missingNoteMinutes
+    }
 }
 
 enum Reminder: Equatable {
     case notRunning
     case longRunning(hours: Int)
+    case missingNote(minutes: Int)
 }
 
 struct ReminderState: Equatable {
     var lastNotRunning: Date?
     /// Začátek záznamu, pro který už upozornění na dlouhý běh odešlo (jednou za záznam).
     var longRunningNotifiedFor: Date?
+    /// Totéž pro upozornění na chybějící poznámku.
+    var missingNoteNotifiedFor: Date?
 }
 
 enum ReminderPolicy {
@@ -38,17 +59,25 @@ enum ReminderPolicy {
     static func evaluate(
         now: Date,
         runningSince: Date?,
+        runningHasNote: Bool = true,
         lastEntryEnd: Date?,
         settings: ReminderSettings,
         state: ReminderState,
         calendar: Calendar = .prague
     ) -> Reminder? {
         if let start = runningSince {
-            guard settings.remindLongRunning, settings.longRunningHours > 0,
-                  state.longRunningNotifiedFor != start,
-                  now.timeIntervalSince(start) >= TimeInterval(settings.longRunningHours) * 3600
-            else { return nil }
-            return .longRunning(hours: settings.longRunningHours)
+            let elapsed = now.timeIntervalSince(start)
+            if settings.remindLongRunning, settings.longRunningHours > 0,
+               state.longRunningNotifiedFor != start,
+               elapsed >= TimeInterval(settings.longRunningHours) * 3600 {
+                return .longRunning(hours: settings.longRunningHours)
+            }
+            if settings.remindMissingNote, settings.missingNoteMinutes > 0, !runningHasNote,
+               state.missingNoteNotifiedFor != start,
+               elapsed >= TimeInterval(settings.missingNoteMinutes) * 60 {
+                return .missingNote(minutes: settings.missingNoteMinutes)
+            }
+            return nil
         }
 
         guard settings.remindNotRunning, isWorkTime(now, settings: settings, calendar: calendar) else { return nil }
@@ -100,7 +129,9 @@ final class ReminderScheduler {
         let running = timer.runningEntry
         let lastEnd = running == nil ? timer.lastResumableEntry()?.end : nil
         let reminder = ReminderPolicy.evaluate(
-            now: now, runningSince: running?.start, lastEntryEnd: lastEnd,
+            now: now, runningSince: running?.start,
+            runningHasNote: running.map { BulletText.clean($0.note ?? "") != nil } ?? true,
+            lastEntryEnd: lastEnd,
             settings: settings(), state: state
         )
         switch reminder {
@@ -115,6 +146,10 @@ final class ReminderScheduler {
             state.longRunningNotifiedFor = running?.start
             let name = running?.project?.name ?? "Projekt"
             notify(.longRunning(hours: hours), "Časovač běží už \(hours) h", "\(name) – nezapomněl jsi ho zastavit?")
+        case .missingNote(let minutes):
+            state.missingNoteNotifiedFor = running?.start
+            let name = running?.project?.name ?? "Projekt"
+            notify(.missingNote(minutes: minutes), "Chybí poznámka", "\(name) běží už \(minutes) min bez poznámky.")
         }
     }
 }

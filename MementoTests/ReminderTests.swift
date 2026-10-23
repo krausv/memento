@@ -17,11 +17,61 @@ final class ReminderPolicyTests: XCTestCase {
     }
 
     private func evaluate(
-        now: Date, running: Date? = nil, lastEnd: Date? = nil,
+        now: Date, running: Date? = nil, hasNote: Bool = true, lastEnd: Date? = nil,
         settings: ReminderSettings? = nil, state: ReminderState = ReminderState()
     ) -> Reminder? {
-        ReminderPolicy.evaluate(now: now, runningSince: running, lastEntryEnd: lastEnd,
+        ReminderPolicy.evaluate(now: now, runningSince: running, runningHasNote: hasNote, lastEntryEnd: lastEnd,
                                 settings: settings ?? self.settings, state: state)
+    }
+
+    private var noteSettings: ReminderSettings {
+        var s = ReminderSettings()
+        s.remindMissingNote = true
+        s.missingNoteMinutes = 15
+        return s
+    }
+
+    func testMissingNoteFiresAfterThresholdOncePerEntry() {
+        let start = date(21, 10)
+        XCTAssertNil(evaluate(now: date(21, 10, 14), running: start, hasNote: false, settings: noteSettings))
+        XCTAssertEqual(evaluate(now: date(21, 10, 15), running: start, hasNote: false, settings: noteSettings),
+                       .missingNote(minutes: 15))
+
+        let notified = ReminderState(missingNoteNotifiedFor: start)
+        XCTAssertNil(evaluate(now: date(21, 11), running: start, hasNote: false, settings: noteSettings, state: notified))
+        XCTAssertEqual(evaluate(now: date(21, 11), running: date(21, 10, 30), hasNote: false, settings: noteSettings, state: notified),
+                       .missingNote(minutes: 15))
+    }
+
+    func testMissingNoteSkippedWhenNoteExistsOrDisabledOrNotRunning() {
+        let start = date(21, 10)
+        XCTAssertNil(evaluate(now: date(21, 12), running: start, hasNote: true, settings: noteSettings))
+        XCTAssertNil(evaluate(now: date(21, 12), running: start, hasNote: false, settings: ReminderSettings()))
+        var s = noteSettings
+        s.remindNotRunning = false
+        XCTAssertNil(evaluate(now: date(21, 12), running: nil, settings: s))
+    }
+
+    func testMissingNoteWorksOutsideWorkHours() {
+        XCTAssertEqual(evaluate(now: date(24, 22), running: date(24, 21), hasNote: false, settings: noteSettings),
+                       .missingNote(minutes: 15))
+    }
+
+    func testLongRunningTakesPriorityOverMissingNote() {
+        var s = noteSettings
+        s.remindLongRunning = true
+        s.longRunningHours = 1
+        XCTAssertEqual(evaluate(now: date(21, 12), running: date(21, 10), hasNote: false, settings: s), .longRunning(hours: 1))
+    }
+
+    func testSettingsWithoutNewFieldsStillDecode() throws {
+        let old = #"{"remindNotRunning":true,"workDays":[2,3],"workStartMinutes":480,"workEndMinutes":960,"remindLongRunning":true,"longRunningHours":6}"#
+        let decoded = try JSONDecoder().decode(ReminderSettings.self, from: Data(old.utf8))
+        XCTAssertTrue(decoded.remindNotRunning)
+        XCTAssertEqual(decoded.workDays, [2, 3])
+        XCTAssertEqual(decoded.longRunningHours, 6)
+        XCTAssertFalse(decoded.remindMissingNote)
+        XCTAssertEqual(decoded.missingNoteMinutes, 15)
     }
 
     func testRemindsOnlyInWorkHoursOnWorkDays() {
@@ -107,6 +157,31 @@ final class ReminderSchedulerTests: XCTestCase {
         time.addTimeInterval(3600)
         scheduler.check()
         XCTAssertEqual(sent.count, 2)
+    }
+
+    func testSchedulerSendsMissingNoteOnlyWhenNoteIsEmpty() throws {
+        let project = Project(name: "A", hourlyRate: 100)
+        container.mainContext.insert(project)
+        let timer = TimerController(context: container.mainContext, clock: { [unowned self] in self.time })
+        var settings = ReminderSettings()
+        settings.remindMissingNote = true
+        settings.missingNoteMinutes = 10
+        let scheduler = ReminderScheduler(timer: timer, clock: { [unowned self] in self.time },
+                                          settings: { settings }, notify: { [unowned self] r, _, _ in self.sent.append(r) })
+        let entry = try timer.start(project)
+
+        time.addTimeInterval(11 * 60)
+        scheduler.check()
+        scheduler.check()
+        XCTAssertEqual(sent, [.missingNote(minutes: 10)])
+
+        try timer.stop()
+        entry.note = "• hotovo"
+        let second = try timer.start(project, note: "• s poznámkou")
+        time.addTimeInterval(11 * 60)
+        scheduler.check()
+        XCTAssertEqual(sent.count, 1)
+        _ = second
     }
 
     func testStartDefaultResumesOrStartsFirstProject() throws {

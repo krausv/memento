@@ -102,13 +102,19 @@ struct SettingsView: View {
             if reminders.remindLongRunning {
                 Stepper("Po \(reminders.longRunningHours) h", value: $reminders.longRunningHours, in: 1...24)
             }
+            Toggle("Upozornit, když časovač běží bez poznámky", isOn: $reminders.remindMissingNote)
+            if reminders.remindMissingNote {
+                Stepper("Po \(reminders.missingNoteMinutes) min", value: $reminders.missingNoteMinutes, in: 5...480, step: 5)
+                Text("Upozornění přijde jednou za záznam; kliknutím na něj se otevře zadání poznámky.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
         .environment(\.locale, CzFormat.locale)
         .environment(\.calendar, .prague)
         .environment(\.timeZone, Calendar.prague.timeZone)
         .onChange(of: reminders) {
             AppSettings.reminders = reminders
-            if reminders.remindNotRunning || reminders.remindLongRunning { Notifications.requestAuthorization() }
+            if reminders.remindNotRunning || reminders.remindLongRunning || reminders.remindMissingNote { Notifications.requestAuthorization() }
         }
     }
 
