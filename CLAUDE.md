@@ -31,7 +31,7 @@ Lint není nastaven.
   - `Reminders` – `ReminderPolicy` (čistá funkce: kdy připomenout) a `ReminderScheduler` (minutový tick + probuzení Macu).
   - `Backup` – verzovaný JSON export/import (`BackupService`); při změně modelu zvaž bump `Backup.currentVersion` a doplň DTO. `AutoBackup` – plánovač automatických záloh do zvolené složky (maže jen soubory vzoru `memento-auto-*.json`).
 - `PDF/` – `ReportPaginator` rozdělí data na stránky, `ReportPageView` je SwiftUI stránka A4, `PDFExporter` renderuje přes `ImageRenderer` do PDF kontextu. Renderer jen vykresluje hotová data z `ReportBuilder`.
-- `Views/` + `MementoApp.swift` – `StatusItemController` (vlastní `NSStatusItem`: levé tlačítko start/poznámka, pravé menu; spravuje i okna přes AppKit, SwiftUI scéna je prázdná) a hlavní okno (projekty, záznamy, export, nastavení). Aplikace je `LSUIElement` (bez ikony v Docku).
+- `Views/` + `MementoApp.swift` – `StatusItemController` (vlastní `NSStatusItem`: levý dvojklik start/stop, levý klik poznámka, pravé tlačítko menu; spravuje i okna přes AppKit, SwiftUI scéna je prázdná) a hlavní okno (projekty, záznamy, export, nastavení). Aplikace je `LSUIElement` (bez ikony v Docku).
 
 ## Konvence
 

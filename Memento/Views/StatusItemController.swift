@@ -1,10 +1,11 @@
 import AppKit
+import os
 import Observation
 import SwiftData
 import SwiftUI
 
 /// Ikona v liště. MenuBarExtra nerozliší levé a pravé kliknutí, proto vlastní NSStatusItem:
-/// levé tlačítko spustí časovač (nebo při běžícím otevře poznámku), pravé otevře menu.
+/// levý dvojklik spustí / zastaví časovač, levý jednoduchý klik otevře poznámku, pravé tlačítko menu.
 @MainActor
 final class StatusItemController: NSObject {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -12,6 +13,8 @@ final class StatusItemController: NSObject {
     private let container: ModelContainer
     private var mainWindow: NSWindow?
     private var noteWindow: NSWindow?
+    private var pendingSingleClick: DispatchWorkItem?
+    private var lastLeftClick: TimeInterval?
 
     init(timer: TimerController, container: ModelContainer) {
         self.timer = timer
@@ -54,14 +57,40 @@ final class StatusItemController: NSObject {
 
     @objc private func clicked() {
         let event = NSApp.currentEvent
+        Logger(subsystem: "cz.memento.app", category: "click").debug("klik type=\(event?.type.rawValue ?? 0) count=\(event?.clickCount ?? 0)")
         if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
             showMenu()
-        } else if let running = timer.runningEntry {
-            showNoteWindow(for: running)
-        } else if (try? timer.startDefault()) != nil {
-            // spuštěno
         } else {
-            showMainWindow()
+            handleLeftClick()
+        }
+    }
+
+    /// Jednoduchý klik (poznámka) se musí o dobu dvojkliku zpozdit, aby ho druhý klik mohl zrušit;
+    /// jinak by se před zastavením časovače vždy na chvíli otevřelo okno s poznámkou.
+    private func handleLeftClick() {
+        // `clickCount` u tlačítka ve stavové liště nedorazí spolehlivě, dvojklik proto poznáme podle času sami.
+        let now = ProcessInfo.processInfo.systemUptime
+        let isDouble = lastLeftClick.map { now - $0 <= NSEvent.doubleClickInterval } ?? false
+        pendingSingleClick?.cancel()
+        pendingSingleClick = nil
+        lastLeftClick = isDouble ? nil : now
+        switch isDouble {
+        case false:
+            guard timer.runningEntry != nil else { return }
+            let work = DispatchWorkItem { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, let running = self.timer.runningEntry else { return }
+                    self.showNoteWindow(for: running)
+                }
+            }
+            pendingSingleClick = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval, execute: work)
+        case true:
+            if timer.runningEntry != nil {
+                try? timer.stop()
+            } else if (try? timer.startDefault()) == nil {
+                showMainWindow()
+            }
         }
     }
 
