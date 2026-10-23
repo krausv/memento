@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 @main
-struct PichackaApp: App {
+struct MementoApp: App {
     private let container: ModelContainer
     @State private var timer: TimerController
 
@@ -30,7 +30,7 @@ struct PichackaApp: App {
                 .environment(timer)
         }
 
-        Window("Píchačka", id: MainWindow.id) {
+        Window("Memento", id: MainWindow.id) {
             MainWindow()
                 .environment(timer)
                 .modelContainer(container)

@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import Pichacka
+@testable import Memento
 
 @MainActor
 final class TimerControllerTests: XCTestCase {

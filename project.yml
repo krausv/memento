@@ -1,4 +1,4 @@
-name: Pichacka
+name: Memento
 options:
   bundleIdPrefix: cz.memento
   createIntermediateGroups: true
@@ -13,36 +13,36 @@ settings:
     CODE_SIGN_STYLE: Manual
     ENABLE_HARDENED_RUNTIME: YES
 targets:
-  Pichacka:
+  Memento:
     type: application
     platform: macOS
     sources:
-      - Pichacka
+      - Memento
     info:
-      path: Pichacka/Info.plist
+      path: Memento/Info.plist
       properties:
-        CFBundleDisplayName: Píchačka
+        CFBundleDisplayName: Memento
         LSUIElement: true
         LSApplicationCategoryType: public.app-category.productivity
     settings:
       base:
-        PRODUCT_NAME: Pichacka
-        PRODUCT_BUNDLE_IDENTIFIER: cz.memento.pichacka
-  PichackaTests:
+        PRODUCT_NAME: Memento
+        PRODUCT_BUNDLE_IDENTIFIER: cz.memento.app
+  MementoTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - PichackaTests
+      - MementoTests
     dependencies:
-      - target: Pichacka
+      - target: Memento
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: cz.memento.pichacka.tests
+        PRODUCT_BUNDLE_IDENTIFIER: cz.memento.app.tests
 schemes:
-  Pichacka:
+  Memento:
     build:
       targets:
-        Pichacka: all
+        Memento: all
     test:
       targets:
-        - PichackaTests
+        - MementoTests

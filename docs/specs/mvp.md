@@ -8,7 +8,7 @@ Jednoduchá nativní macOS aplikace pro sledování času na úkolech. Žádný 
 - Perzistence: SwiftData (lokální úložiště v Application Support)
 - Generování PDF: SwiftUI `ImageRenderer` do PDF kontextu (bez knihoven třetích stran)
 - Xcode projekt generovat přes **XcodeGen** (`project.yml`), `.xcodeproj` needitovat ručně a necommitovat
-- Build a testy spouštět z CLI: `xcodegen generate && xcodebuild -scheme Pichacka build test`
+- Build a testy spouštět z CLI: `xcodegen generate && xcodebuild -scheme Memento build test`
 - Bez externích závislostí
 
 ## Forma aplikace
@@ -17,7 +17,7 @@ Aplikace má dvě části:
 
 1. **Menu bar** (`MenuBarExtra`) – hlavní ovládání během dne
    - Ikona v liště; když běží časovač, vedle ikony je vidět uplynulý čas (`1:23`)
-   - Po kliknutí: aktuálně běžící úkol + tlačítko Stop, seznam posledních 5 úkolů pro rychlé spuštění, tlačítko „Otevřít Píchačku“, Ukončit
+   - Po kliknutí: aktuálně běžící úkol + tlačítko Stop, seznam posledních 5 úkolů pro rychlé spuštění, tlačítko „Otevřít Memento“, Ukončit
 2. **Hlavní okno** – správa projektů, úkolů, záznamů a export
 
 Aplikace se nezobrazuje v Docku (`LSUIElement = YES`), hlavní okno se otevírá z menu baru.

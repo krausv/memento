@@ -34,7 +34,7 @@ struct MenuBarContent: View {
         }
 
         Divider()
-        Button("Otevřít Píchačku") {
+        Button("Otevřít Memento") {
             openWindow(id: MainWindow.id)
             NSApp.activate()
         }

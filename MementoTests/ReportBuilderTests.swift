@@ -1,5 +1,5 @@
 import XCTest
-@testable import Pichacka
+@testable import Memento
 
 final class ReportBuilderTests: XCTestCase {
     private let calendar = Calendar.prague

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Pichacka
+@testable import Memento
 
 final class EntryValidatorTests: XCTestCase {
     private let base = Date(timeIntervalSince1970: 1_800_000_000)
