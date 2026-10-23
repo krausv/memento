@@ -62,6 +62,7 @@ Mazání: smazání projektu smaže jeho záznamy (cascade), ale jen po potvrzen
 - Archivované projekty se nezobrazují v menu baru ani při výběru, ale zůstávají v historii a exportech
 
 ### Záznamy času
+- Filtr podle měsíce (výchozí aktuální měsíc, volba „Všechny měsíce“; nabízí měsíce se záznamy) a podle štítku; nad seznamem souhrn hodin, **fakturované částky** a počtu záznamů, u každého dne a záznamu hodiny a částka. Částka = čas se zaokrouhlením z exportu × sazba projektu; měsíční součty se počítají jako ve výkazu (sekundy za projekt a měsíc, haléře až na konci), takže sedí s PDF; při víc měnách se zobrazují zvlášť (`Billing`)
 - Seznam záznamů seskupený po dnech (nejnovější nahoře), u každého dne součet
 - Ruční přidání záznamu (projekt, datum, od–do, poznámka) pro případ, že jsem zapomněl píchnout
 - Úprava a smazání záznamu

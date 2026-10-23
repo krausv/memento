@@ -7,6 +7,8 @@ struct EntriesView: View {
     @Query(sort: \TimeEntry.start, order: .reverse) private var allEntries: [TimeEntry]
     @Query(sort: \Tag.name) private var tags: [Tag]
     @State private var tagFilterID: UUID?
+    /// Výchozí je aktuální měsíc; `nil` = všechny měsíce.
+    @State private var monthFilter: ReportMonth? = ReportMonth(containing: Date())
 
     @State private var showingNew = false
     @State private var editing: TimeEntry?
@@ -16,8 +18,41 @@ struct EntriesView: View {
     private var activeFilter: Tag? { tags.first { $0.id == tagFilterID } }
 
     private var entries: [TimeEntry] {
-        guard let filter = activeFilter else { return allEntries }
-        return allEntries.filter { entry in entry.tags.contains { $0 === filter } }
+        allEntries.filter { entry in
+            (monthFilter?.contains(entry.start) ?? true)
+                && (activeFilter.map { filter in entry.tags.contains { $0 === filter } } ?? true)
+        }
+    }
+
+    /// Měsíce, ve kterých jsou záznamy, a vždy aktuální měsíc; nejnovější první.
+    private var availableMonths: [ReportMonth] {
+        var months = Set(allEntries.map { ReportMonth(containing: $0.start) })
+        months.insert(ReportMonth(containing: Date()))
+        if let monthFilter { months.insert(monthFilter) }
+        return months.sorted(by: >)
+    }
+
+    private func billing(_ entry: TimeEntry) -> BillingEntry? {
+        guard let project = entry.project else { return nil }
+        return BillingEntry(projectKey: project.id, currency: project.currency, hourlyRate: project.hourlyRate,
+                            start: entry.start, end: entry.end)
+    }
+
+    private func amountText(_ list: [TimeEntry]) -> String {
+        Billing.text(Billing.totals(list.compactMap(billing), now: timer.now, rounding: AppSettings.rounding))
+    }
+
+    private var summary: some View {
+        HStack(spacing: 16) {
+            Text(monthFilter.map(CzFormat.month) ?? "Všechny měsíce").font(.headline)
+            Spacer()
+            Label(CzFormat.hours(seconds: Int(entries.reduce(0) { $0 + $1.duration(at: timer.now) })), systemImage: "clock")
+            Label(amountText(entries), systemImage: "banknote").fontWeight(.semibold)
+            Text("\(entries.count) záznamů").foregroundStyle(.secondary)
+        }
+        .monospacedDigit()
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
     }
 
     private var days: [(day: Date, entries: [TimeEntry])] {
@@ -27,26 +62,20 @@ struct EntriesView: View {
     }
 
     var body: some View {
-        List {
-            if entries.isEmpty {
-                ContentUnavailableView("Žádné záznamy", systemImage: "clock",
-                                       description: Text(activeFilter == nil ? "Spusť časovač nebo přidej záznam ručně." : "Se zvoleným štítkem nejsou žádné záznamy."))
-            }
-            ForEach(days, id: \.day) { group in
-                Section {
-                    ForEach(group.entries) { entry in row(entry) }
-                } header: {
-                    HStack {
-                        Text(CzFormat.dayHeading(group.day))
-                        Spacer()
-                        Text(CzFormat.hours(seconds: Int(group.entries.reduce(0) { $0 + $1.duration(at: timer.now) })))
-                            .monospacedDigit()
-                    }
-                }
-            }
+        VStack(spacing: 0) {
+            summary
+            Divider()
+            list
         }
         .navigationTitle("Záznamy")
         .toolbar {
+            ToolbarItem {
+                Picker("Měsíc", selection: $monthFilter) {
+                    Text("Všechny měsíce").tag(ReportMonth?.none)
+                    Divider()
+                    ForEach(availableMonths, id: \.self) { Text(CzFormat.month($0)).tag(Optional($0)) }
+                }
+            }
             if !tags.isEmpty {
                 ToolbarItem {
                     Picker("Štítek", selection: $tagFilterID) {
@@ -62,6 +91,34 @@ struct EntriesView: View {
         .sheet(isPresented: $showingNew) { EntryForm(entry: nil) }
         .sheet(item: $editing) { EntryForm(entry: $0) }
         .sheet(item: $editingNote) { NoteForm(entry: $0) }
+    }
+
+    private var list: some View {
+        List {
+            if entries.isEmpty {
+                ContentUnavailableView("Žádné záznamy", systemImage: "clock",
+                                       description: Text(allEntries.isEmpty
+                                           ? "Spusť časovač nebo přidej záznam ručně."
+                                           : "Pro zvolený měsíc a štítek nejsou žádné záznamy."))
+            }
+            ForEach(days, id: \.day) { group in
+                Section {
+                    ForEach(group.entries) { entry in row(entry) }
+                } header: {
+                    HStack {
+                        Text(CzFormat.dayHeading(group.day))
+                        Spacer()
+                        Text(CzFormat.hours(seconds: Int(group.entries.reduce(0) { $0 + $1.duration(at: timer.now) })))
+                            .monospacedDigit()
+                        Text(amountText(group.entries)).monospacedDigit().frame(width: 130, alignment: .trailing)
+                    }
+                }
+            }
+            if !entries.isEmpty {
+                Text("Částky jsou se zaokrouhlením z exportu a v součtech po měsících odpovídají výkazu. U filtrovaných záznamů jde o částku jen za zobrazené.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
     }
 
     private func row(_ entry: TimeEntry) -> some View {
@@ -81,6 +138,7 @@ struct EntriesView: View {
                 Text("\(CzFormat.time(entry.start))– běží").foregroundStyle(.tint)
                 Text(timer.elapsedText).monospacedDigit().frame(width: 80, alignment: .trailing)
             }
+            Text(amountText([entry])).monospacedDigit().foregroundStyle(.secondary).frame(width: 130, alignment: .trailing)
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { edit(entry) }
