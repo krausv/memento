@@ -111,7 +111,20 @@ Povinně pokrýt unit testy:
 
 ## Mimo rozsah MVP
 
-Neimplementovat: synchronizaci, iCloud, iOS verzi, účty, týmy, fakturaci a DPH, detekci nečinnosti, grafy a statistiky, štítky, import z jiných nástrojů, notifikace, export do CSV.
+Neimplementovat: synchronizaci, iCloud, iOS verzi, účty, týmy, fakturaci a DPH, detekci nečinnosti, import z jiných nástrojů, export do CSV.
+
+## Plánovaná rozšíření
+
+Po MVP, v tomto pořadí (každé samostatný celek s vlastními testy):
+
+1. **Rychlé navázání** – pokračovat v projektu s poslední poznámkou jedním kliknutím (hotovo)
+   - `TimerController.resumeLast()` spustí projekt posledního záznamu a zkopíruje jeho poznámku; nearchivovaný projekt, jinak se přeskočí na starší záznam
+   - Levé kliknutí na ikonu při neběžícím časovači navazuje na poslední záznam; v pravém menu je položka „Pokračovat: projekt – poznámka“; v seznamu záznamů akce „Pokračovat“
+2. **Zálohování** – export a import do verzovaného JSON (`BackupV1`: projekty, záznamy, štítky, nastavení), ne kopie souboru SwiftData. Import ve dvou režimech: sloučit podle UUID / nahradit vše (s potvrzením); kontrola verze a konzistence (nejvýše jeden běžící záznam). Volitelně týdenní automatická záloha do zvolené složky
+3. **Štítky** – `Tag` (název, barva) ve vztahu M:N se záznamem (ne s projektem); výběr ve formuláři záznamu a v okně poznámky, filtr v Záznamech, správa v Nastavení; v PDF se zatím nezobrazují
+4. **Cíle a limity** – `Project.budgetHours` a období (celkem / měsíčně); čistá funkce `BudgetStatus` počítá včetně běžícího záznamu a se zaokrouhlením z exportu; ukazatel postupu v projektu; upozornění při 80 % a 100 % (poslední odeslaný práh se ukládá)
+5. **Notifikace** (`UserNotifications`) – připomínka „časovač neběží“ v pracovní době a upozornění „běží déle než N hodin“ (výchozí 8); nastavení pracovních dnů a doby; čistá funkce `ReminderPolicy` s omezením na jednu připomínku za hodinu; kontrola jednou za minutu a po probuzení Macu; akce „Spustit poslední projekt“. Sdílí vrstvu s limity
+6. **Grafy a statistiky** – sekce „Přehled“ se Swift Charts; `StatsBuilder` (hodiny po dnech a týdnech, podle projektů a štítků; záznam patří do dne začátku); přepínač týden / měsíc / rok
 
 ## Kritéria dokončení
 

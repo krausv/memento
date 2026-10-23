@@ -58,6 +58,8 @@ final class StatusItemController: NSObject {
             showMenu()
         } else if let running = timer.runningEntry {
             showNoteWindow(for: running)
+        } else if (try? timer.resumeLast()) != nil {
+            // navázáno na poslední záznam
         } else if let project = timer.selectableProjects().first {
             _ = try? timer.start(project)
         } else {
@@ -73,6 +75,11 @@ final class StatusItemController: NSObject {
             menu.addItem(ActionItem("Stop") { [weak self] in try? self?.timer.stop() })
         } else {
             menu.addItem(label("Časovač neběží"))
+            if let last = timer.lastResumableEntry(), let project = last.project {
+                menu.addItem(ActionItem("Pokračovat: " + Self.summary(of: last, in: project)) { [weak self] in
+                    _ = try? self?.timer.resumeLast()
+                })
+            }
         }
 
         menu.addItem(.separator())
@@ -94,6 +101,15 @@ final class StatusItemController: NSObject {
         item.menu = menu
         item.button?.performClick(nil)
         item.menu = nil
+    }
+
+    /// „Projekt – první řádek poznámky“, zkrácené, aby menu nebylo široké.
+    private static func summary(of entry: TimeEntry, in project: Project) -> String {
+        let firstLine = entry.note?.components(separatedBy: .newlines).first?
+            .replacingOccurrences(of: BulletText.marker, with: "")
+            .trimmingCharacters(in: .whitespaces) ?? ""
+        let text = firstLine.isEmpty ? project.name : "\(project.name) – \(firstLine)"
+        return text.count > 50 ? String(text.prefix(49)) + "…" : text
     }
 
     private func label(_ title: String) -> NSMenuItem {

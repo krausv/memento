@@ -74,4 +74,38 @@ final class TimerControllerTests: XCTestCase {
         XCTAssertFalse(controller.selectableProjects().contains { $0 === c })
         _ = d
     }
+
+    func testResumeLastCopiesProjectAndNote() throws {
+        let controller = makeController()
+        let a = makeProject("A"), b = makeProject("B")
+        XCTAssertNil(try controller.resumeLast())
+
+        let first = try controller.start(a, note: "• starší")
+        time.addTimeInterval(60)
+        let second = try controller.start(b, note: "• poslední")
+        time.addTimeInterval(60)
+        try controller.stop()
+        time.addTimeInterval(60)
+
+        let resumed = try XCTUnwrap(try controller.resumeLast())
+        XCTAssertTrue(resumed.project === b)
+        XCTAssertEqual(resumed.note, "• poslední")
+        XCTAssertTrue(controller.runningEntry === resumed)
+        _ = (first, second)
+    }
+
+    func testResumeLastSkipsArchivedProject() throws {
+        let controller = makeController()
+        let a = makeProject("A"), b = makeProject("B")
+        try controller.start(a, note: "• A")
+        time.addTimeInterval(60)
+        try controller.start(b, note: "• B")
+        time.addTimeInterval(60)
+        try controller.stop()
+        b.isArchived = true
+
+        let resumed = try XCTUnwrap(try controller.resumeLast())
+        XCTAssertTrue(resumed.project === a)
+        XCTAssertEqual(resumed.note, "• A")
+    }
 }

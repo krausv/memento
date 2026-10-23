@@ -66,6 +66,9 @@ struct EntriesView: View {
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { edit(entry) }
         .contextMenu {
+            if !entry.isRunning, let project = entry.project, !project.isArchived {
+                Button("Pokračovat") { _ = try? timer.start(project, note: entry.note) }
+            }
             Button(entry.isRunning ? "Upravit poznámku" : "Upravit") { edit(entry) }
             Button("Smazat", role: .destructive) { delete(entry) }
         }

@@ -46,16 +46,34 @@ final class TimerController {
     }
 
     @discardableResult
-    func start(_ project: Project) throws -> TimeEntry {
+    func start(_ project: Project, note: String? = nil) throws -> TimeEntry {
         let moment = clock()
         if let running = runningEntry {
             running.end = max(moment, running.start)
         }
-        let entry = TimeEntry(project: project, start: moment)
+        let entry = TimeEntry(project: project, start: moment, note: note)
         context.insert(entry)
         try context.save()
         refresh()
         return entry
+    }
+
+    /// Poslední ukončený záznam, jehož projekt jde ještě spustit.
+    func lastResumableEntry() -> TimeEntry? {
+        var descriptor = FetchDescriptor<TimeEntry>(
+            predicate: #Predicate { $0.end != nil },
+            sortBy: [SortDescriptor(\.start, order: .reverse)]
+        )
+        descriptor.fetchLimit = 50
+        let entries = (try? context.fetch(descriptor)) ?? []
+        return entries.first { $0.project.map { !$0.isArchived } ?? false }
+    }
+
+    /// Naváže na poslední záznam: stejný projekt i poznámka.
+    @discardableResult
+    func resumeLast() throws -> TimeEntry? {
+        guard let last = lastResumableEntry(), let project = last.project else { return nil }
+        return try start(project, note: last.note)
     }
 
     func stop() throws {
