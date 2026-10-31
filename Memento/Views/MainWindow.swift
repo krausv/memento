@@ -23,7 +23,10 @@ struct MainWindow: View {
         }
     }
 
+    @AppStorage(SettingsKey.palette) private var paletteRaw = Palette.standard.rawValue
     @State private var selection: Section? = .stats
+
+    private var theme: Theme { (Palette(rawValue: paletteRaw) ?? .standard).theme }
 
     var body: some View {
         NavigationSplitView {
@@ -31,6 +34,7 @@ struct MainWindow: View {
                 Label(section.rawValue, systemImage: section.icon).tag(section)
             }
             .navigationSplitViewColumnWidth(min: 150, ideal: 170)
+            .background(theme.sidebar ?? .clear)
         } detail: {
             switch selection ?? .stats {
             case .projects: ProjectsView()
@@ -39,6 +43,14 @@ struct MainWindow: View {
             case .export: ExportView()
             case .settings: SettingsView()
             }
+        }
+        .themed(theme)
+        .background {
+            ZStack {
+                theme.background ?? .clear
+                if theme.pixelScene { PixelForestBackground() }
+            }
+            .ignoresSafeArea()
         }
     }
 }

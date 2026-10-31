@@ -4,6 +4,7 @@ import SwiftUI
 
 struct StatsView: View {
     @Environment(TimerController.self) private var timer
+    @Environment(\.theme) private var theme
     @Query(sort: \TimeEntry.start) private var entries: [TimeEntry]
     @Query(sort: \Project.name) private var projects: [Project]
 
@@ -41,7 +42,7 @@ struct StatsView: View {
                     HStack(alignment: .top, spacing: 16) {
                         card("Podle projektů") { sliceChart(stats.byProject, tint: .accentColor) }
                         card("Podle štítků") {
-                            sliceChart(stats.byTag, tint: .teal)
+                            sliceChart(stats.byTag, tint: theme.secondaryAccent)
                             Text("Záznam s víc štítky se počítá ke každému z nich.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
@@ -98,7 +99,7 @@ struct StatsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(.background.secondary, in: .rect(cornerRadius: 14))
+        .background(theme.surface, in: .rect(cornerRadius: 14))
     }
 
     private func card<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -108,7 +109,7 @@ struct StatsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(.background.secondary, in: .rect(cornerRadius: 14))
+        .background(theme.surface, in: .rect(cornerRadius: 14))
     }
 
     private func timeChart(_ stats: Stats) -> some View {
@@ -120,6 +121,7 @@ struct StatsView: View {
             )
             .foregroundStyle(by: .value("Projekt", point.project))
         }
+        .chartForegroundStyleScale(range: theme.chart)
         .chartXScale(domain: stats.interval.start...stats.interval.end)
         .chartXAxis {
             switch period {

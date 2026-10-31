@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.rounding) private var roundingMinutes = RoundingOption.none.rawValue
     @AppStorage(SettingsKey.supplierName) private var supplierName = ""
     @AppStorage(SettingsKey.supplierIco) private var supplierIco = ""
+    @AppStorage(SettingsKey.palette) private var paletteRaw = Palette.standard.rawValue
 
     @State private var defaultRate = AppSettings.defaultRate
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -23,6 +24,13 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("Vzhled") {
+                Picker("Barevná paleta", selection: $paletteRaw) {
+                    ForEach(Palette.allCases) { Text($0.title).tag($0.rawValue) }
+                }
+                Text((Palette(rawValue: paletteRaw) ?? .standard).detail)
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Projekty") {
                 TextField("Výchozí sazba pro nové projekty", value: $defaultRate,
                           format: .number.precision(.fractionLength(0...2)))

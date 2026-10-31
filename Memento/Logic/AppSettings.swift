@@ -9,6 +9,7 @@ enum SettingsKey {
     static let autoBackup = "autoBackupSettings"
     static let lastAutoBackup = "autoBackupLast"
     static let autoBackupError = "autoBackupError"
+    static let palette = "colorPalette"
 }
 
 enum AppSettings {
