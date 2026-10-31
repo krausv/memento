@@ -3,3 +3,7 @@ Memento/Info.plist
 build/
 DerivedData/
 .DS_Store
+
+# Ručně otevřený build v kořeni repozitáře
+/Memento.app/
+*.textClipping
