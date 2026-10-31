@@ -9,7 +9,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.rounding) private var roundingMinutes = RoundingOption.none.rawValue
     @AppStorage(SettingsKey.supplierName) private var supplierName = ""
     @AppStorage(SettingsKey.supplierIco) private var supplierIco = ""
-    @AppStorage(SettingsKey.palette) private var paletteRaw = Palette.standard.rawValue
+    @AppStorage(SettingsKey.palette) private var paletteRaw = Palette.travertine.rawValue
 
     @State private var defaultRate = AppSettings.defaultRate
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -28,7 +28,7 @@ struct SettingsView: View {
                 Picker("Barevná paleta", selection: $paletteRaw) {
                     ForEach(Palette.allCases) { Text($0.title).tag($0.rawValue) }
                 }
-                Text((Palette(rawValue: paletteRaw) ?? .standard).detail)
+                Text((Palette(rawValue: paletteRaw) ?? .travertine).detail)
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Projekty") {

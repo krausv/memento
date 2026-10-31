@@ -23,10 +23,10 @@ struct MainWindow: View {
         }
     }
 
-    @AppStorage(SettingsKey.palette) private var paletteRaw = Palette.standard.rawValue
+    @AppStorage(SettingsKey.palette) private var paletteRaw = Palette.travertine.rawValue
     @State private var selection: Section? = .stats
 
-    private var theme: Theme { (Palette(rawValue: paletteRaw) ?? .standard).theme }
+    private var theme: Theme { (Palette(rawValue: paletteRaw) ?? .travertine).theme }
 
     var body: some View {
         NavigationSplitView {
@@ -48,7 +48,11 @@ struct MainWindow: View {
         .background {
             ZStack {
                 theme.background ?? .clear
-                if theme.pixelScene { PixelForestBackground() }
+                switch theme.scene {
+                case .pixelForest: PixelForestBackground()
+                case .sundial: SundialBackground()
+                case .none: EmptyView()
+                }
             }
             .ignoresSafeArea()
         }

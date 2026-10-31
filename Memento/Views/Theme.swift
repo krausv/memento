@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Barevná paleta hlavního okna. Volba se ukládá jako `rawValue` do `SettingsKey.palette`.
 enum Palette: String, CaseIterable, Identifiable {
+    case travertine
     case standard
     case forest
 
@@ -9,13 +10,15 @@ enum Palette: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .standard: "Výchozí"
+        case .travertine: "Travertin"
+        case .standard: "Systémový"
         case .forest: "Les"
         }
     }
 
     var detail: String {
         switch self {
+        case .travertine: "Teplé pískové tóny a hnědý inkoust podle ikony aplikace."
         case .standard: "Systémový vzhled macOS."
         case .forest: "Uklidňující tmavě zelené tóny."
         }
@@ -23,6 +26,7 @@ enum Palette: String, CaseIterable, Identifiable {
 
     var theme: Theme {
         switch self {
+        case .travertine: .travertine
         case .standard: .standard
         case .forest: .forest
         }
@@ -39,14 +43,36 @@ struct Theme {
     /// Barvy sérií v grafech (projekty v čase).
     var chart: [Color]
     var secondaryAccent: Color
-    /// Animované pixelartové pozadí.
-    var pixelScene = false
+    /// Barva textu; `nil` = systémová.
+    var ink: Color?
+    /// Dekorativní pozadí.
+    var scene = Scene.none
+
+    enum Scene { case none, pixelForest, sundial }
 
     static let standard = Theme(
         accent: .accentColor, background: nil, sidebar: nil,
         surface: AnyShapeStyle(.background.secondary), colorScheme: nil,
         chart: [.blue, .green, .orange, .purple, .pink, .teal, .yellow, .indigo],
         secondaryAccent: .teal
+    )
+
+    /// Travertin: paleta ikony (pískový kámen, hnědý inkoust, bronz a terakota).
+    static let travertine = Theme(
+        accent: Color(red: 0.60, green: 0.36, blue: 0.20),
+        background: Color(red: 0.902, green: 0.863, blue: 0.765),
+        sidebar: Color(red: 0.796, green: 0.741, blue: 0.616),
+        surface: AnyShapeStyle(Color(red: 0.953, green: 0.925, blue: 0.855)),
+        colorScheme: .light,
+        chart: [
+            Color(red: 0.65, green: 0.31, blue: 0.20), Color(red: 0.78, green: 0.60, blue: 0.27),
+            Color(red: 0.43, green: 0.45, blue: 0.27), Color(red: 0.35, green: 0.30, blue: 0.22),
+            Color(red: 0.36, green: 0.49, blue: 0.54), Color(red: 0.62, green: 0.44, blue: 0.40),
+            Color(red: 0.58, green: 0.55, blue: 0.40), Color(red: 0.47, green: 0.33, blue: 0.20),
+        ],
+        secondaryAccent: Color(red: 0.43, green: 0.45, blue: 0.27),
+        ink: Color(red: 0.227, green: 0.188, blue: 0.133),
+        scene: .sundial
     )
 
     static let forest = Theme(
@@ -62,7 +88,7 @@ struct Theme {
             Color(red: 0.42, green: 0.58, blue: 0.30), Color(red: 0.73, green: 0.85, blue: 0.75),
         ],
         secondaryAccent: Color(red: 0.36, green: 0.62, blue: 0.55),
-        pixelScene: true
+        scene: .pixelForest
     )
 }
 
@@ -85,5 +111,7 @@ extension View {
             .tint(theme.accent)
             .preferredColorScheme(theme.colorScheme)
             .scrollContentBackground(theme.background == nil ? .automatic : .hidden)
+            .foregroundStyle(theme.ink ?? Color.primary)
+            .toolbarBackgroundVisibility(theme.background == nil ? .automatic : .hidden, for: .windowToolbar)
     }
 }

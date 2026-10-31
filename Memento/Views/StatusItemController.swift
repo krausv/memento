@@ -20,7 +20,7 @@ final class StatusItemController: NSObject {
         self.container = container
         super.init()
         if let button = item.button {
-            button.image = NSImage(systemSymbolName: "timer", accessibilityDescription: "Memento")
+            button.image = Self.menuBarIcon()
             button.imagePosition = .imageLeading
             button.target = self
             button.action = #selector(clicked)
@@ -160,6 +160,9 @@ final class StatusItemController: NSObject {
             let window = NSWindow(contentViewController: host)
             window.contentMinSize = NSSize(width: 760, height: 480)
             window.title = "Memento"
+            // Průhledné záhlaví: obsah okna (barva a pozadí palety) sahá až pod titulek.
+            window.styleMask.insert(.fullSizeContentView)
+            window.titlebarAppearsTransparent = true
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 900, height: 580))
             window.setFrameAutosaveName("MementoMainWindow")
@@ -199,6 +202,23 @@ final class StatusItemController: NSObject {
     private func present(_ window: NSWindow?) {
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Šablonová ikona sluneční hodiny pro menu bar: kruh, gnómon a stín.
+    private static func menuBarIcon() -> NSImage {
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
+            NSColor.black.setStroke(); NSColor.black.setFill()
+            let ring = NSBezierPath(ovalIn: NSRect(x: 1.5, y: 1.5, width: 15, height: 15))
+            ring.lineWidth = 1.5; ring.stroke()
+            let shadow = NSBezierPath()
+            shadow.move(to: NSPoint(x: 8.2, y: 10)); shadow.line(to: NSPoint(x: 9.8, y: 8))
+            shadow.line(to: NSPoint(x: 14, y: 4.2)); shadow.close(); shadow.fill()
+            NSBezierPath(rect: NSRect(x: 6.6, y: 9.6, width: 2.6, height: 3.4)).fill()
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = "Memento"
+        return image
     }
 }
 
