@@ -15,6 +15,7 @@ struct SettingsView: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var launchError: String?
     @State private var reminders = AppSettings.reminders
+    @State private var pomodoro = AppSettings.pomodoro
     @State private var autoBackup = AppSettings.autoBackup()
     @State private var lastAutoBackup = AppSettings.lastAutoBackup()
     @State private var autoBackupError = AppSettings.lastAutoBackupError()
@@ -46,6 +47,7 @@ struct SettingsView: View {
                 TextField("IČO dodavatele", text: $supplierIco)
             }
             remindersSection
+            pomodoroSection
             TagManagerSection()
             Section("Záloha") {
                 HStack {
@@ -123,6 +125,29 @@ struct SettingsView: View {
         .onChange(of: reminders) {
             AppSettings.reminders = reminders
             if reminders.remindNotRunning || reminders.remindLongRunning || reminders.remindMissingNote { Notifications.requestAuthorization() }
+        }
+    }
+
+    private var pomodoroSection: some View {
+        Section("Pomodoro") {
+            Toggle("Upozorňovat na pomodoro", isOn: $pomodoro.enabled)
+            if pomodoro.enabled {
+                Stepper("Práce: \(pomodoro.workMinutes) min", value: $pomodoro.workMinutes, in: 5...120, step: 5)
+                Stepper("Krátká pauza: \(pomodoro.shortBreakMinutes) min", value: $pomodoro.shortBreakMinutes, in: 1...30)
+                Stepper("Dlouhá pauza: \(pomodoro.longBreakMinutes) min", value: $pomodoro.longBreakMinutes, in: 5...60, step: 5)
+                Stepper("Dlouhá pauza po \(pomodoro.cyclesBeforeLongBreak) pomodorech",
+                        value: $pomodoro.cyclesBeforeLongBreak, in: 2...10)
+                Toggle("Další fáze naváže automaticky", isOn: $pomodoro.autoAdvance)
+                Text("Cyklus začíná spuštěním časovače a končí jeho zastavením. Pomodoro jen připomíná, měření času pauzou nezastavuje. "
+                     + (pomodoro.autoAdvance
+                        ? "Fáze se střídají samy, oznámení jen informuje."
+                        : "Další fáze začne až po kliknutí na „Spustit“ v oznámení."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .onChange(of: pomodoro) {
+            AppSettings.pomodoro = pomodoro
+            if pomodoro.enabled { Notifications.requestAuthorization() }
         }
     }
 
@@ -247,6 +272,7 @@ struct SettingsView: View {
             timer.refresh()
             defaultRate = AppSettings.defaultRate
             reminders = AppSettings.reminders
+            pomodoro = AppSettings.pomodoro
             report("Import hotov: přidáno projektů \(summary.addedProjects), záznamů \(summary.addedEntries), přeskočeno \(summary.skippedEntries).")
         } catch {
             report("Import selhal: \(error.localizedDescription)", failed: true)

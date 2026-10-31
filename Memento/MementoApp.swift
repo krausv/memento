@@ -9,6 +9,7 @@ struct MementoApp: App {
     private let statusItem: StatusItemController?
     private let budgetMonitor: BudgetMonitor?
     private let reminders: ReminderScheduler?
+    private let pomodoro: PomodoroScheduler?
     private let autoBackup: AutoBackupScheduler?
 
     init() {
@@ -31,6 +32,7 @@ struct MementoApp: App {
         if isTesting {
             budgetMonitor = nil
             reminders = nil
+            pomodoro = nil
             autoBackup = nil
         } else {
             Notifications.configure()
@@ -52,13 +54,27 @@ struct MementoApp: App {
                     }
                 }
             }
+            let pomodoroScheduler = MainActor.assumeIsolated {
+                PomodoroScheduler(timer: timer) { notice, title, body in
+                    switch notice {
+                    case .breakDue: Notifications.post(title: title, body: body, category: .pomodoroBreakDue)
+                    case .workDue: Notifications.post(title: title, body: body, category: .pomodoroWorkDue)
+                    case .breakStarted: Notifications.post(title: title, body: body, category: .pomodoroBreakStarted)
+                    case .workStarted: Notifications.post(title: title, body: body)
+                    }
+                }
+            }
             MainActor.assumeIsolated {
                 scheduler.start()
-                Notifications.actionHandler = { [weak timer, weak statusItem] action, category in
+                pomodoroScheduler.start()
+                Notifications.actionHandler = { [weak timer, weak statusItem, weak pomodoroScheduler] action, category in
                     switch action {
                     case Notifications.Action.startLast: _ = try? timer?.startDefault()
                     case Notifications.Action.stop: try? timer?.stop()
                     case Notifications.Action.addNote: statusItem?.showNoteForRunningEntry()
+                    case Notifications.Action.pomodoroStart: pomodoroScheduler?.perform(.startNext)
+                    case Notifications.Action.pomodoroSnooze: pomodoroScheduler?.perform(.snooze)
+                    case Notifications.Action.pomodoroSkipBreak: pomodoroScheduler?.perform(.skipBreak)
                     case UNNotificationDefaultActionIdentifier:
                         // Klik na samotné oznámení o chybějící poznámce rovnou otevře její zadání.
                         if category == Notifications.Category.missingNote.rawValue { statusItem?.showNoteForRunningEntry() }
@@ -67,6 +83,7 @@ struct MementoApp: App {
                 }
             }
             reminders = scheduler
+            pomodoro = pomodoroScheduler
 
             let backups = MainActor.assumeIsolated {
                 AutoBackupScheduler(context: container.mainContext) {

@@ -30,6 +30,7 @@ Lint není nastaven.
   - `Billing` – `Billing.totals` (fakturované částky po měnách, počítané jako ve výkazu; používá obrazovka Záznamy).
   - `Stats` – `StatsBuilder` (agregace pro sekci Přehled; skutečné časy, ne zaokrouhlené jako ve výkazu).
   - `Reminders` – `ReminderPolicy` (čistá funkce: kdy připomenout) a `ReminderScheduler` (minutový tick + probuzení Macu).
+  - `Pomodoro` – `PomodoroPolicy` (čistý stavový automat fází práce / krátká / dlouhá pauza) a `PomodoroScheduler` (sekundový tick, vázaný na běžící časovač, oznámení s akcemi). Zatím jen režim oznámení; vizuální časovač přijde jako druhý režim nad stejnou logikou.
   - `Backup` – verzovaný JSON export/import (`BackupService`); při změně modelu zvaž bump `Backup.currentVersion` a doplň DTO. `AutoBackup` – plánovač automatických záloh do zvolené složky (maže jen soubory vzoru `memento-auto-*.json`).
 - `PDF/` – `ReportPaginator` rozdělí data na stránky, `ReportPageView` je SwiftUI stránka A4, `PDFExporter` renderuje přes `ImageRenderer` do PDF kontextu. Renderer jen vykresluje hotová data z `ReportBuilder`.
 - `Views/` + `MementoApp.swift` – `StatusItemController` (vlastní `NSStatusItem`: levý dvojklik start/stop, levý klik poznámka, pravé tlačítko menu; spravuje i okna přes AppKit, SwiftUI scéna je prázdná) a hlavní okno (projekty, záznamy, export, nastavení). Aplikace je `LSUIElement` (bez ikony v Docku).

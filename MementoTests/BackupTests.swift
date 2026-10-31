@@ -210,4 +210,21 @@ final class BackupTests: XCTestCase {
         let restored = try JSONDecoder().decode(ReminderSettings.self, from: try XCTUnwrap(other.data(forKey: SettingsKey.reminders)))
         XCTAssertEqual(restored, reminders)
     }
+
+    func testPomodoroSettingsRoundTrip() throws {
+        let source = try makeContext()
+        _ = try seed(source)
+        var pomodoro = PomodoroSettings()
+        pomodoro.enabled = true
+        pomodoro.workMinutes = 50
+        pomodoro.autoAdvance = true
+        defaults.set(try JSONEncoder().encode(pomodoro), forKey: SettingsKey.pomodoro)
+        let backup = try BackupService.decode(
+            BackupService.encode(try BackupService.makeBackup(context: source, now: date, defaults: defaults)))
+
+        let other = UserDefaults(suiteName: "BackupTests-pom-\(UUID())")!
+        try BackupService.restore(backup, mode: .replace, context: try makeContext(), defaults: other)
+        let restored = try JSONDecoder().decode(PomodoroSettings.self, from: try XCTUnwrap(other.data(forKey: SettingsKey.pomodoro)))
+        XCTAssertEqual(restored, pomodoro)
+    }
 }

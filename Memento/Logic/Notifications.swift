@@ -7,12 +7,18 @@ enum Notifications {
         case notRunning = "reminder.notRunning"
         case longRunning = "reminder.longRunning"
         case missingNote = "reminder.missingNote"
+        case pomodoroBreakDue = "pomodoro.breakDue"
+        case pomodoroWorkDue = "pomodoro.workDue"
+        case pomodoroBreakStarted = "pomodoro.breakStarted"
     }
 
     enum Action {
         static let startLast = "action.startLast"
         static let stop = "action.stop"
         static let addNote = "action.addNote"
+        static let pomodoroStart = "action.pomodoroStart"
+        static let pomodoroSnooze = "action.pomodoroSnooze"
+        static let pomodoroSkipBreak = "action.pomodoroSkipBreak"
     }
 
     /// Volá se na hlavním vlákně po kliknutí na akci v oznámení.
@@ -36,6 +42,8 @@ enum Notifications {
 
     private static let delegate = Delegate()
 
+    private static var snoozeTitle: String { "Ještě \(Int(PomodoroPolicy.snooze / 60)) minut" }
+
     static func configure() {
         let center = UNUserNotificationCenter.current()
         center.delegate = delegate
@@ -53,6 +61,28 @@ enum Notifications {
             UNNotificationCategory(
                 identifier: Category.missingNote.rawValue,
                 actions: [UNNotificationAction(identifier: Action.addNote, title: "Doplnit poznámku")],
+                intentIdentifiers: []
+            ),
+            UNNotificationCategory(
+                identifier: Category.pomodoroBreakDue.rawValue,
+                actions: [
+                    UNNotificationAction(identifier: Action.pomodoroStart, title: "Spustit pauzu"),
+                    UNNotificationAction(identifier: Action.pomodoroSnooze, title: snoozeTitle),
+                    UNNotificationAction(identifier: Action.pomodoroSkipBreak, title: "Přeskočit pauzu"),
+                ],
+                intentIdentifiers: []
+            ),
+            UNNotificationCategory(
+                identifier: Category.pomodoroWorkDue.rawValue,
+                actions: [
+                    UNNotificationAction(identifier: Action.pomodoroStart, title: "Spustit pomodoro"),
+                    UNNotificationAction(identifier: Action.pomodoroSnooze, title: snoozeTitle),
+                ],
+                intentIdentifiers: []
+            ),
+            UNNotificationCategory(
+                identifier: Category.pomodoroBreakStarted.rawValue,
+                actions: [UNNotificationAction(identifier: Action.pomodoroSkipBreak, title: "Přeskočit pauzu")],
                 intentIdentifiers: []
             ),
         ])

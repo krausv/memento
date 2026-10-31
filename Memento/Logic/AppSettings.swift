@@ -6,6 +6,7 @@ enum SettingsKey {
     static let supplierName = "supplierName"
     static let supplierIco = "supplierIco"
     static let reminders = "reminderSettings"
+    static let pomodoro = "pomodoroSettings"
     static let autoBackup = "autoBackupSettings"
     static let lastAutoBackup = "autoBackupLast"
     static let autoBackupError = "autoBackupError"
@@ -29,6 +30,14 @@ enum AppSettings {
                 .flatMap { try? JSONDecoder().decode(ReminderSettings.self, from: $0) } ?? ReminderSettings()
         }
         set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: SettingsKey.reminders) }
+    }
+
+    static var pomodoro: PomodoroSettings {
+        get {
+            UserDefaults.standard.data(forKey: SettingsKey.pomodoro)
+                .flatMap { try? JSONDecoder().decode(PomodoroSettings.self, from: $0) } ?? PomodoroSettings()
+        }
+        set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: SettingsKey.pomodoro) }
     }
 
     static func autoBackup(_ defaults: UserDefaults = .standard) -> AutoBackupSettings {

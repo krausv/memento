@@ -55,13 +55,16 @@ struct Backup: Codable, Equatable {
         var supplierIco: String?
         /// Nepovinné, aby šly načíst zálohy bez připomínek.
         var reminders: ReminderSettings?
+        var pomodoro: PomodoroSettings?
 
-        init(defaultRate: String, roundingMinutes: Int, supplierName: String?, supplierIco: String?, reminders: ReminderSettings? = nil) {
+        init(defaultRate: String, roundingMinutes: Int, supplierName: String?, supplierIco: String?,
+             reminders: ReminderSettings? = nil, pomodoro: PomodoroSettings? = nil) {
             self.defaultRate = defaultRate
             self.roundingMinutes = roundingMinutes
             self.supplierName = supplierName
             self.supplierIco = supplierIco
             self.reminders = reminders
+            self.pomodoro = pomodoro
         }
     }
 
@@ -129,7 +132,9 @@ enum BackupService {
                 supplierName: defaults.string(forKey: SettingsKey.supplierName),
                 supplierIco: defaults.string(forKey: SettingsKey.supplierIco),
                 reminders: defaults.data(forKey: SettingsKey.reminders)
-                    .flatMap { try? JSONDecoder().decode(ReminderSettings.self, from: $0) }
+                    .flatMap { try? JSONDecoder().decode(ReminderSettings.self, from: $0) },
+                pomodoro: defaults.data(forKey: SettingsKey.pomodoro)
+                    .flatMap { try? JSONDecoder().decode(PomodoroSettings.self, from: $0) }
             )
         )
     }
@@ -300,6 +305,9 @@ enum BackupService {
             set(backup.settings.supplierIco, forKey: SettingsKey.supplierIco, in: defaults)
             if let reminders = backup.settings.reminders {
                 defaults.set(try? JSONEncoder().encode(reminders), forKey: SettingsKey.reminders)
+            }
+            if let pomodoro = backup.settings.pomodoro {
+                defaults.set(try? JSONEncoder().encode(pomodoro), forKey: SettingsKey.pomodoro)
             }
         }
         return summary
