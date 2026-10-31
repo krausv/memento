@@ -65,7 +65,19 @@ struct EntriesView: View {
         VStack(spacing: 0) {
             summary
             Divider()
-            list
+            if entries.isEmpty {
+                // Stejně jako prázdný stav v Přehledu: obsah u horního okraje, vodorovně uprostřed.
+                ScrollView {
+                    ContentUnavailableView("Žádné záznamy", systemImage: "clock",
+                                           description: Text(allEntries.isEmpty
+                                               ? "Spusť časovač nebo přidej záznam ručně."
+                                               : "Pro zvolený měsíc a štítek nejsou žádné záznamy."))
+                        .frame(maxWidth: .infinity, minHeight: 240)
+                        .padding(20)
+                }
+            } else {
+                list
+            }
         }
         .navigationTitle("Záznamy")
         .toolbar {
@@ -111,14 +123,6 @@ struct EntriesView: View {
             if !entries.isEmpty {
                 Text("Částky jsou se zaokrouhlením z exportu a v součtech po měsících odpovídají výkazu. U filtrovaných záznamů jde o částku jen za zobrazené.")
                     .font(.caption).foregroundStyle(.secondary)
-            }
-        }
-        .overlay {
-            if entries.isEmpty {
-                ContentUnavailableView("Žádné záznamy", systemImage: "clock",
-                                       description: Text(allEntries.isEmpty
-                                           ? "Spusť časovač nebo přidej záznam ručně."
-                                           : "Pro zvolený měsíc a štítek nejsou žádné záznamy."))
             }
         }
     }
