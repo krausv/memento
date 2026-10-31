@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs><filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.3"/></filter><clipPath id="disc"><circle cx="512" cy="512" r="318"/></clipPath></defs>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="#cbbd9d" filter="url(#sh)"/>
+<circle cx="512" cy="512" r="352" fill="#9c8d6c"/>
+<circle cx="512" cy="512" r="330" fill="#e6dcc3"/>
+<circle cx="512" cy="512" r="318" fill="none" stroke="#5a4d37" stroke-width="6"/>
+<circle cx="512" cy="512" r="222" fill="none" stroke="#5a4d37" stroke-width="6"/>
+<line x1="512.0" y1="290.0" x2="512.0" y2="194.0" stroke="#5a4d37" stroke-width="12" opacity="1"/>
+<line x1="623.0" y1="319.7" x2="671.0" y2="236.6" stroke="#5a4d37" stroke-width="7" opacity="0.7"/>
+<line x1="704.3" y1="401.0" x2="787.4" y2="353.0" stroke="#5a4d37" stroke-width="7" opacity="0.7"/>
+<line x1="734.0" y1="512.0" x2="830.0" y2="512.0" stroke="#5a4d37" stroke-width="12" opacity="1"/>
+<line x1="704.3" y1="623.0" x2="787.4" y2="671.0" stroke="#5a4d37" stroke-width="7" opacity="0.7"/>
+<line x1="623.0" y1="704.3" x2="671.0" y2="787.4" stroke="#5a4d37" stroke-width="7" opacity="0.7"/>
+<line x1="512.0" y1="734.0" x2="512.0" y2="830.0" stroke="#5a4d37" stroke-width="12" opacity="1"/>
+<line x1="401.0" y1="704.3" x2="353.0" y2="787.4" stroke="#5a4d37" stroke-width="7" opacity="0.7"/>
+<line x1="319.7" y1="623.0" x2="236.6" y2="671.0" stroke="#5a4d37" stroke-width="7" opacity="0.7"/>
+<line x1="290.0" y1="512.0" x2="194.0" y2="512.0" stroke="#5a4d37" stroke-width="12" opacity="1"/>
+<line x1="319.7" y1="401.0" x2="236.6" y2="353.0" stroke="#5a4d37" stroke-width="7" opacity="0.7"/>
+<line x1="401.0" y1="319.7" x2="353.0" y2="236.6" stroke="#5a4d37" stroke-width="7" opacity="0.7"/>
+<rect x="450.0" y="198.0" width="124" height="88" fill="#e6dcc3"/>
+<path d="M-50.0 -30.0 L-10.0 30.0 M-10.0 -30.0 L-50.0 30.0 M8.0 -30.0 L8.0 30.0 M38.0 -30.0 L38.0 30.0" transform="translate(512.0 242.0) scale(0.9)" fill="none" stroke="#5a4d37" stroke-width="15" stroke-linecap="square" stroke-linejoin="miter"/>
+<rect x="720.0" y="468.0" width="124" height="88" fill="#e6dcc3"/>
+<path d="M-30.0 -30.0 L-30.0 30.0 M0.0 -30.0 L0.0 30.0 M30.0 -30.0 L30.0 30.0" transform="translate(782.0 512.0) scale(0.9)" fill="none" stroke="#5a4d37" stroke-width="15" stroke-linecap="square" stroke-linejoin="miter"/>
+<rect x="450.0" y="738.0" width="124" height="88" fill="#e6dcc3"/>
+<path d="M-35.0 -30.0 L-15.0 30.0 L5.0 -30.0 M23.0 -30.0 L23.0 30.0" transform="translate(512.0 782.0) scale(0.9)" fill="none" stroke="#5a4d37" stroke-width="15" stroke-linecap="square" stroke-linejoin="miter"/>
+<rect x="180.0" y="468.0" width="124" height="88" fill="#e6dcc3"/>
+<path d="M-23.0 -30.0 L-23.0 30.0 M-5.0 -30.0 L35.0 30.0 M35.0 -30.0 L-5.0 30.0" transform="translate(242.0 512.0) scale(0.9)" fill="none" stroke="#5a4d37" stroke-width="15" stroke-linecap="square" stroke-linejoin="miter"/>
+<g clip-path="url(#disc)"><path d="M496.0 542.0 L528.0 482.0 L865.2 699.8Z" fill="#2f281c" opacity="0.65"/></g>
+<path d='M496.0 542.0 L528.0 482.0 L442.2 440.9 L414.0 493.9Z' fill='#3b3224'/>
+</svg>
