@@ -28,12 +28,14 @@ struct ProjectsView: View {
 
     var body: some View {
         List {
+            ForEach(visibleProjects) { project in
+                projectRow(project)
+            }
+        }
+        .overlay {
             if visibleProjects.isEmpty {
                 ContentUnavailableView("Žádné projekty", systemImage: "folder.badge.plus",
                                        description: Text("Vytvoř první projekt tlačítkem „Nový projekt“."))
-            }
-            ForEach(visibleProjects) { project in
-                projectRow(project)
             }
         }
         .navigationTitle("Projekty")

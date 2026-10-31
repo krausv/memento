@@ -95,12 +95,6 @@ struct EntriesView: View {
 
     private var list: some View {
         List {
-            if entries.isEmpty {
-                ContentUnavailableView("Žádné záznamy", systemImage: "clock",
-                                       description: Text(allEntries.isEmpty
-                                           ? "Spusť časovač nebo přidej záznam ručně."
-                                           : "Pro zvolený měsíc a štítek nejsou žádné záznamy."))
-            }
             ForEach(days, id: \.day) { group in
                 Section {
                     ForEach(group.entries) { entry in row(entry) }
@@ -117,6 +111,14 @@ struct EntriesView: View {
             if !entries.isEmpty {
                 Text("Částky jsou se zaokrouhlením z exportu a v součtech po měsících odpovídají výkazu. U filtrovaných záznamů jde o částku jen za zobrazené.")
                     .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .overlay {
+            if entries.isEmpty {
+                ContentUnavailableView("Žádné záznamy", systemImage: "clock",
+                                       description: Text(allEntries.isEmpty
+                                           ? "Spusť časovač nebo přidej záznam ručně."
+                                           : "Pro zvolený měsíc a štítek nejsou žádné záznamy."))
             }
         }
     }
