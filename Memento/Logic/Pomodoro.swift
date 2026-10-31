@@ -1,7 +1,11 @@
 import Foundation
+import Observation
 
 struct PomodoroSettings: Codable, Equatable {
-    var enabled = false
+    /// Režim 1: oznámení na hranici fází.
+    var notifications = false
+    /// Režim 2: plovoucí okno s vizuálním časovačem.
+    var visualTimer = false
     var workMinutes = 25
     var shortBreakMinutes = 5
     var longBreakMinutes = 15
@@ -12,11 +16,19 @@ struct PomodoroSettings: Codable, Equatable {
 
     init() {}
 
+    /// Cyklus běží, pokud je zapnutý aspoň jeden režim.
+    var isActive: Bool { notifications || visualTimer }
+
+    private enum LegacyKeys: String, CodingKey { case enabled }
+
     /// Vlastní dekódování, aby se při přidání nového pole nezahodilo už uložené nastavení.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = PomodoroSettings()
-        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? d.enabled
+        // Dřívější verze měla jediný přepínač `enabled` (tehdy existovala jen oznámení).
+        let legacy = try? decoder.container(keyedBy: LegacyKeys.self).decodeIfPresent(Bool.self, forKey: .enabled)
+        notifications = try c.decodeIfPresent(Bool.self, forKey: .notifications) ?? legacy ?? d.notifications
+        visualTimer = try c.decodeIfPresent(Bool.self, forKey: .visualTimer) ?? d.visualTimer
         workMinutes = try c.decodeIfPresent(Int.self, forKey: .workMinutes) ?? d.workMinutes
         shortBreakMinutes = try c.decodeIfPresent(Int.self, forKey: .shortBreakMinutes) ?? d.shortBreakMinutes
         longBreakMinutes = try c.decodeIfPresent(Int.self, forKey: .longBreakMinutes) ?? d.longBreakMinutes
@@ -84,6 +96,26 @@ enum PomodoroPolicy {
         return next
     }
 
+    /// Zbývající čas fáze (po konci 0).
+    static func remaining(_ state: PomodoroState, now: Date, settings: PomodoroSettings) -> TimeInterval {
+        max(0, endDate(of: state, settings: settings).timeIntervalSince(now))
+    }
+
+    /// Podíl uplynulé části fáze, 0…1.
+    static func progress(_ state: PomodoroState, now: Date, settings: PomodoroSettings) -> Double {
+        let total = duration(of: state.phase, settings: settings) + state.extra
+        guard total > 0 else { return 1 }
+        return min(1, max(0, now.timeIntervalSince(state.phaseStart) / total))
+    }
+
+    /// Akce, které dává smysl nabídnout ve stavu `state` (stejné jako tlačítka v oznámení).
+    static func availableActions(_ state: PomodoroState) -> [PomodoroAction] {
+        if state.awaiting {
+            return state.phase == .work ? [.startNext, .snooze, .skipBreak] : [.startNext, .snooze]
+        }
+        return state.phase.isBreak ? [.skipBreak] : []
+    }
+
     /// „Ještě 5 minut“: fáze skončí za `snooze` od `now`.
     static func snoozed(_ state: PomodoroState, settings: PomodoroSettings, now: Date) -> PomodoroState {
         var next = state
@@ -132,13 +164,19 @@ enum PomodoroAction {
 /// Sleduje cyklus Pomodora vázaný na běžící časovač: začíná se spuštěním časovače, končí jeho zastavením.
 /// Jen připomíná – měření času nijak neovlivňuje.
 @MainActor
+@Observable
 final class PomodoroScheduler {
-    private let timer: TimerController
-    private let clock: () -> Date
-    private let settings: () -> PomodoroSettings
-    private let notify: (PomodoroNotice, String, String) -> Void
-    private var ticker: Timer?
+    @ObservationIgnored private let timer: TimerController
+    @ObservationIgnored private let clock: () -> Date
+    @ObservationIgnored private let settings: () -> PomodoroSettings
+    @ObservationIgnored private let notify: (PomodoroNotice, String, String) -> Void
+    @ObservationIgnored private var ticker: Timer?
     private(set) var state: PomodoroState?
+    /// Má být vidět plovoucí okno (cyklus běží a je zapnutý vizuální časovač).
+    private(set) var showsVisual = false
+
+    /// Aktuální nastavení – pohled z něj bere délky fází a počet pomodor v sérii.
+    var currentSettings: PomodoroSettings { settings() }
 
     init(
         timer: TimerController,
@@ -164,8 +202,12 @@ final class PomodoroScheduler {
     func check() {
         let now = clock()
         let config = settings()
-        guard config.enabled, timer.runningEntry != nil else {
-            state = nil
+        defer {
+            let visible = config.visualTimer && state != nil
+            if showsVisual != visible { showsVisual = visible }
+        }
+        guard config.isActive, timer.runningEntry != nil else {
+            if state != nil { state = nil }
             return
         }
         guard var current = state else {
@@ -186,6 +228,7 @@ final class PomodoroScheduler {
             notice = upcoming.phase.isBreak
                 ? .breakDue(upcoming.phase, completed: upcoming.completed) : .workDue
         }
+        guard config.notifications else { return }
         let text = notice.text(settings: config)
         notify(notice, text.title, text.body)
     }

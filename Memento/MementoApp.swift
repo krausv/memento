@@ -10,6 +10,7 @@ struct MementoApp: App {
     private let budgetMonitor: BudgetMonitor?
     private let reminders: ReminderScheduler?
     private let pomodoro: PomodoroScheduler?
+    private let pomodoroPanel: PomodoroPanelController?
     private let autoBackup: AutoBackupScheduler?
 
     init() {
@@ -33,6 +34,7 @@ struct MementoApp: App {
             budgetMonitor = nil
             reminders = nil
             pomodoro = nil
+            pomodoroPanel = nil
             autoBackup = nil
         } else {
             Notifications.configure()
@@ -84,6 +86,7 @@ struct MementoApp: App {
             }
             reminders = scheduler
             pomodoro = pomodoroScheduler
+            pomodoroPanel = MainActor.assumeIsolated { PomodoroPanelController(scheduler: pomodoroScheduler) }
 
             let backups = MainActor.assumeIsolated {
                 AutoBackupScheduler(context: container.mainContext) {

@@ -215,7 +215,7 @@ final class BackupTests: XCTestCase {
         let source = try makeContext()
         _ = try seed(source)
         var pomodoro = PomodoroSettings()
-        pomodoro.enabled = true
+        pomodoro.notifications = true
         pomodoro.workMinutes = 50
         pomodoro.autoAdvance = true
         defaults.set(try JSONEncoder().encode(pomodoro), forKey: SettingsKey.pomodoro)

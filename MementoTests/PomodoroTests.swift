@@ -8,7 +8,7 @@ final class PomodoroPolicyTests: XCTestCase {
 
     override func setUp() {
         settings = PomodoroSettings()
-        settings.enabled = true
+        settings.notifications = true
     }
 
     private func at(_ minutes: Double) -> Date { t0.addingTimeInterval(minutes * 60) }
@@ -93,9 +93,37 @@ final class PomodoroPolicyTests: XCTestCase {
 
     func testDecodingOldSettingsKeepsDefaults() throws {
         let decoded = try JSONDecoder().decode(PomodoroSettings.self, from: Data(#"{"enabled":true}"#.utf8))
-        XCTAssertTrue(decoded.enabled)
+        XCTAssertTrue(decoded.notifications)
+        XCTAssertFalse(decoded.visualTimer)
         XCTAssertEqual(decoded.workMinutes, 25)
         XCTAssertEqual(decoded.cyclesBeforeLongBreak, 4)
+    }
+
+    func testRemainingAndProgress() {
+        let state = PomodoroState(phaseStart: t0)
+        XCTAssertEqual(PomodoroPolicy.remaining(state, now: at(10), settings: settings), 15 * 60)
+        XCTAssertEqual(PomodoroPolicy.progress(state, now: at(10), settings: settings), 0.4, accuracy: 0.0001)
+        XCTAssertEqual(PomodoroPolicy.remaining(state, now: at(40), settings: settings), 0)
+        XCTAssertEqual(PomodoroPolicy.progress(state, now: at(40), settings: settings), 1)
+        XCTAssertEqual(PomodoroPolicy.progress(state, now: at(-5), settings: settings), 0)
+    }
+
+    func testAvailableActions() {
+        var work = PomodoroState(phaseStart: t0)
+        XCTAssertEqual(PomodoroPolicy.availableActions(work), [])
+        work.awaiting = true
+        XCTAssertEqual(PomodoroPolicy.availableActions(work), [.startNext, .snooze, .skipBreak])
+        var pause = PomodoroState(phase: .shortBreak, phaseStart: t0)
+        XCTAssertEqual(PomodoroPolicy.availableActions(pause), [.skipBreak])
+        pause.awaiting = true
+        XCTAssertEqual(PomodoroPolicy.availableActions(pause), [.startNext, .snooze])
+    }
+
+    func testLegacyEnabledMapsToNotifications() throws {
+        let decoded = try JSONDecoder().decode(PomodoroSettings.self, from: Data(#"{"enabled":true,"visualTimer":true}"#.utf8))
+        XCTAssertTrue(decoded.notifications)
+        XCTAssertTrue(decoded.visualTimer)
+        XCTAssertTrue(decoded.isActive)
     }
 
     func testNoticeTexts() {
@@ -119,7 +147,7 @@ final class PomodoroSchedulerTests: XCTestCase {
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         settings = PomodoroSettings()
-        settings.enabled = true
+        settings.notifications = true
         notices = []
     }
 
@@ -146,7 +174,8 @@ final class PomodoroSchedulerTests: XCTestCase {
         scheduler.check()
         XCTAssertNil(scheduler.state)
 
-        settings.enabled = false
+        settings.notifications = false
+        settings.visualTimer = false
         _ = try timer.start(project)
         scheduler.check()
         XCTAssertNil(scheduler.state)
@@ -204,6 +233,20 @@ final class PomodoroSchedulerTests: XCTestCase {
         advance(5, scheduler)
         XCTAssertEqual(notices.last, .workStarted)
         XCTAssertEqual(scheduler.state?.phase, .work)
+    }
+
+    func testVisualOnlyModeRunsCycleWithoutNotifying() throws {
+        settings.notifications = false
+        settings.visualTimer = true
+        let (timer, project) = makeTimer()
+        let scheduler = makeScheduler(timer)
+        _ = try timer.start(project)
+        scheduler.check()
+        advance(25, scheduler)
+        XCTAssertTrue(notices.isEmpty)
+        XCTAssertEqual(scheduler.state?.awaiting, true)
+        scheduler.perform(.startNext)
+        XCTAssertEqual(scheduler.state?.phase, .shortBreak)
     }
 
     func testStaleActionsAreIgnored() throws {

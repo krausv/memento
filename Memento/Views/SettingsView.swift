@@ -130,8 +130,9 @@ struct SettingsView: View {
 
     private var pomodoroSection: some View {
         Section("Pomodoro") {
-            Toggle("Upozorňovat na pomodoro", isOn: $pomodoro.enabled)
-            if pomodoro.enabled {
+            Toggle("Oznámení na konci fáze", isOn: $pomodoro.notifications)
+            Toggle("Vizuální časovač (plovoucí okno)", isOn: $pomodoro.visualTimer)
+            if pomodoro.isActive {
                 Stepper("Práce: \(pomodoro.workMinutes) min", value: $pomodoro.workMinutes, in: 5...120, step: 5)
                 Stepper("Krátká pauza: \(pomodoro.shortBreakMinutes) min", value: $pomodoro.shortBreakMinutes, in: 1...30)
                 Stepper("Dlouhá pauza: \(pomodoro.longBreakMinutes) min", value: $pomodoro.longBreakMinutes, in: 5...60, step: 5)
@@ -140,14 +141,14 @@ struct SettingsView: View {
                 Toggle("Další fáze naváže automaticky", isOn: $pomodoro.autoAdvance)
                 Text("Cyklus začíná spuštěním časovače a končí jeho zastavením. Pomodoro jen připomíná, měření času pauzou nezastavuje. "
                      + (pomodoro.autoAdvance
-                        ? "Fáze se střídají samy, oznámení jen informuje."
-                        : "Další fáze začne až po kliknutí na „Spustit“ v oznámení."))
+                        ? "Fáze se střídají samy."
+                        : "Další fáze začne až po kliknutí na „Spustit“ v oznámení nebo v plovoucím okně."))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
         .onChange(of: pomodoro) {
             AppSettings.pomodoro = pomodoro
-            if pomodoro.enabled { Notifications.requestAuthorization() }
+            if pomodoro.notifications { Notifications.requestAuthorization() }
         }
     }
 
