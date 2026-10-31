@@ -78,4 +78,17 @@ final class TargetForecastTests: XCTestCase {
         XCTAssertEqual(days, 3)
         XCTAssertEqual(seconds, 12 * 3600)
     }
+
+    func testRequiredTodaySplitsRemainingAcrossWorkdays() {
+        // Středa 21. 10. v 7:00, chybí 40 h, zbývá 8 pracovních dní → 5 h denně.
+        let f = forecast(amount: 30_000, now: date(21))!
+        XCTAssertEqual(f.requiredTodaySeconds, 5 * 3600)
+        XCTAssertEqual(f.todayCapacitySeconds, 8 * 3600)
+    }
+
+    func testRequiredTodayIsZeroOutsideWorkingTimeOrWhenReached() {
+        XCTAssertEqual(forecast(amount: 30_000, now: date(21, 18))!.requiredTodaySeconds, 0, "po pracovní době")
+        XCTAssertEqual(forecast(amount: 30_000, now: date(24, 10))!.requiredTodaySeconds, 0, "sobota")
+        XCTAssertEqual(forecast(amount: 80_000, now: date(21))!.requiredTodaySeconds, 0, "cíl splněn")
+    }
 }

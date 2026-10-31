@@ -4,6 +4,7 @@ struct MainWindow: View {
     static let id = "main"
 
     enum Section: String, CaseIterable, Identifiable {
+        case today = "Dnešní den"
         case projects = "Projekty"
         case entries = "Záznamy"
         case stats = "Přehled"
@@ -14,6 +15,7 @@ struct MainWindow: View {
 
         var icon: String {
             switch self {
+            case .today: "sun.max"
             case .projects: "folder"
             case .entries: "list.bullet.rectangle"
             case .stats: "chart.bar"
@@ -24,7 +26,7 @@ struct MainWindow: View {
     }
 
     @AppStorage(SettingsKey.palette) private var paletteRaw = Palette.travertine.rawValue
-    @State private var selection: Section? = .stats
+    @State private var selection: Section? = .today
 
     private var theme: Theme { (Palette(rawValue: paletteRaw) ?? .travertine).theme }
 
@@ -36,7 +38,8 @@ struct MainWindow: View {
             .navigationSplitViewColumnWidth(min: 150, ideal: 170)
             .background(theme.sidebar ?? .clear)
         } detail: {
-            switch selection ?? .stats {
+            switch selection ?? .today {
+            case .today: TodayView()
             case .projects: ProjectsView()
             case .entries: EntriesView()
             case .stats: StatsView()

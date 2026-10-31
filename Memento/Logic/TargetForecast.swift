@@ -20,10 +20,19 @@ struct TargetForecast: Equatable {
     let capacitySeconds: Int
     /// Dny, ve kterých ještě zbývá nějaká pracovní doba (dnešek se počítá, pokud ještě neskončil).
     let workDaysLeft: Int
+    /// Zbývající pracovní doba dnešního dne (0, když dnes není pracovní den nebo už skončila pracovní doba).
+    let todayCapacitySeconds: Int
     let verdict: Verdict
 
     /// Potřebný denní průměr; `nil`, když už není kdy pracovat.
     var requiredPerDaySeconds: Int? { workDaysLeft > 0 ? remainingSeconds / workDaysLeft : nil }
+
+    /// Kolik ještě zbývá odpracovat dnes, aby se zbytek měsíce rozložil rovnoměrně mezi zbývající pracovní dny.
+    /// 0, když dnes už nebo ještě není co plánovat (víkend, po pracovní době) nebo je cíl splněn.
+    var requiredTodaySeconds: Int {
+        guard todayCapacitySeconds > 0, workDaysLeft > 0, remainingSeconds > 0 else { return 0 }
+        return (remainingSeconds + workDaysLeft - 1) / workDaysLeft
+    }
 
     static let realisticShare = 0.8
 
@@ -52,8 +61,17 @@ struct TargetForecast: Equatable {
         }
         return TargetForecast(
             remainingSeconds: status.position == .under ? remaining : 0,
-            capacitySeconds: capacity, workDaysLeft: days, verdict: verdict
+            capacitySeconds: capacity, workDaysLeft: days,
+            todayCapacitySeconds: todayCapacity(now: now, schedule: schedule, calendar: calendar), verdict: verdict
         )
+    }
+
+    /// Zbývající pracovní doba dnešního dne od `now`.
+    static func todayCapacity(now: Date, schedule: ReminderSettings, calendar: Calendar = .prague) -> Int {
+        guard schedule.workDays.contains(calendar.component(.weekday, from: now)) else { return 0 }
+        let parts = calendar.dateComponents([.hour, .minute], from: now)
+        let nowMinutes = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+        return max(0, schedule.workEndMinutes - max(nowMinutes, schedule.workStartMinutes)) * 60
     }
 
     /// Zbývající pracovní doba od `now` do konce měsíce.
