@@ -23,7 +23,7 @@ Lint není nastaven.
 
 - Vydání: `git tag v0.2.0 && git push --tags` spustí `.github/workflows/release.yml` (testy → import Developer ID → `scripts/make-dmg.sh` → podepsané a notarizované `Memento.dmg` přiložené k GitHub Release). Verze aplikace se bere z tagu, číslo buildu z čísla běhu. Potřebné secrety jsou popsané v hlavičce workflow.
 - Lokálně: `scripts/make-dmg.sh` (bez Developer ID podepíše ad-hoc; `SIGN_IDENTITY=-` vynutí ad-hoc, `VERSION=0.2.0` přepíše verzi z `project.yml`).
-- Aplikace si denně přes GitHub API (`releases/latest`) zjišťuje novější verzi (`Logic/UpdateChecker`, `UpdateStore`) a jen nabídne stažení – položka v pravém menu a Nastavení › Aktualizace. Verze v `Info.plist` jde z `MARKETING_VERSION` v `project.yml`; před vydáním ji tam zvyš, ať lokální buildy nehlásí starší verzi.
+- Aplikace si denně přes GitHub API (`releases/latest`) zjišťuje novější verzi (`Logic/UpdateChecker`, `UpdateStore`) a nabídne aktualizaci – položka v pravém menu a Nastavení › Aktualizace. `UpdateInstaller` stáhne DMG, ověří SHA-256 a podpis (stejné Team ID i bundle ID jako běžící aplikace), vymění `Memento.app` a restartuje se; ad-hoc buildy (bez Team ID) jen otevřou stránku vydání, takže v-app aktualizaci jde vyzkoušet jen z DMG podepsaného Developer ID. Verze v `Info.plist` jde z `MARKETING_VERSION` v `project.yml`; před vydáním ji tam zvyš, ať lokální buildy nehlásí starší verzi.
 
 ## Architektura
 

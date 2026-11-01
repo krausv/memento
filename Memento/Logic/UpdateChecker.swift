@@ -38,6 +38,10 @@ struct ReleaseInfo: Equatable, Sendable {
     let tagName: String
     /// Stránka vydání, která se otevře v prohlížeči (je tam DMG ke stažení).
     let url: URL
+    /// Přímý odkaz na `Memento.dmg`; bez něj jde vydání jen otevřít v prohlížeči.
+    var assetURL: URL?
+    /// Kontrolní součet DMG ve tvaru `sha256:<hex>` (GitHub ho u souborů vydání uvádí).
+    var sha256: String?
 }
 
 /// Výsledek ruční kontroly: „aktuální“ a „selhalo“ se tu liší.
@@ -70,14 +74,23 @@ struct UpdateChecker: Sendable {
     /// Dekóduje odpověď `/releases/latest`.
     static func decode(_ data: Data) throws -> ReleaseInfo {
         struct Payload: Decodable {
+            struct Asset: Decodable {
+                let name: String
+                let browser_download_url: String
+                let digest: String?
+            }
             let tag_name: String
             let html_url: String
+            let assets: [Asset]?
         }
         let payload = try JSONDecoder().decode(Payload.self, from: data)
         guard let version = AppVersion(payload.tag_name), let url = URL(string: payload.html_url) else {
             throw URLError(.cannotParseResponse)
         }
-        return ReleaseInfo(version: version, tagName: payload.tag_name, url: url)
+        let dmg = payload.assets?.first { $0.name == "Memento.dmg" }
+        return ReleaseInfo(version: version, tagName: payload.tag_name, url: url,
+                           assetURL: dmg.flatMap { URL(string: $0.browser_download_url) },
+                           sha256: dmg?.digest?.lowercased())
     }
 
     func checkDetailed(currentVersion: String) async -> UpdateCheckResult {

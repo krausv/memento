@@ -125,7 +125,11 @@ final class StatusItemController: NSObject {
 
         if let release = updates.available {
             menu.addItem(.separator())
-            menu.addItem(ActionItem("Dostupná aktualizace \(release.version) – stáhnout") { NSWorkspace.shared.open(release.url) })
+            if updates.isInstalling {
+                menu.addItem(label("Aktualizuji na \(release.version)…"))
+            } else {
+                menu.addItem(ActionItem("Aktualizovat na \(release.version) a restartovat") { [weak self] in self?.updates.startUpdate() })
+            }
         }
 
         menu.addItem(.separator())

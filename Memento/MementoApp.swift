@@ -43,7 +43,10 @@ struct MementoApp: App {
             autoBackup = nil
         } else {
             Notifications.configure()
-            MainActor.assumeIsolated { updates.start() }
+            MainActor.assumeIsolated {
+                updates.onInstallFailure = { Notifications.post(title: "Aktualizace se nepovedla", body: $0) }
+                updates.start()
+            }
             let monitor = MainActor.assumeIsolated {
                 BudgetMonitor(context: container.mainContext) { Notifications.post(title: $0, body: $1) }
             }

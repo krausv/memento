@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -13,7 +14,24 @@ final class UpdateStore {
     /// Výsledek poslední ruční kontroly; `nil` = nikdy se neptal.
     private(set) var manualStatus: ManualStatus?
 
+    /// Průběh aktualizace zevnitř aplikace.
+    enum InstallState: Equatable {
+        case idle
+        case downloading(Double)
+        case installing
+        case failed(String)
+    }
+
+    private(set) var installState: InstallState = .idle
+
+    /// Zavolá se, když instalace selže (aby se to dozvěděl i ten, kdo ji spustil z menu).
+    @ObservationIgnored var onInstallFailure: ((String) -> Void)?
+
     @ObservationIgnored private let checker: UpdateChecker
+    @ObservationIgnored private let canInstallInPlace: () -> Bool
+    @ObservationIgnored private let installAction: (ReleaseInfo, @escaping @Sendable (Double) -> Void) async throws -> Void
+    @ObservationIgnored private let openPage: (URL) -> Void
+    @ObservationIgnored private let quit: () -> Void
     @ObservationIgnored private let currentVersion: String
     @ObservationIgnored private let isEnabled: () -> Bool
     @ObservationIgnored private var task: Task<Void, Never>?
@@ -21,8 +39,18 @@ final class UpdateStore {
     init(
         checker: UpdateChecker = UpdateChecker(),
         currentVersion: String = UpdateStore.bundleVersion,
-        isEnabled: @escaping () -> Bool = { AppSettings.checkForUpdates }
+        isEnabled: @escaping () -> Bool = { AppSettings.checkForUpdates },
+        canInstallInPlace: @escaping () -> Bool = { UpdateInstaller().canInstallInPlace },
+        installAction: @escaping (ReleaseInfo, @escaping @Sendable (Double) -> Void) async throws -> Void = {
+            try await UpdateInstaller().install($0, progress: $1)
+        },
+        openPage: @escaping (URL) -> Void = { NSWorkspace.shared.open($0) },
+        quit: @escaping () -> Void = { NSApp.terminate(nil) }
     ) {
+        self.canInstallInPlace = canInstallInPlace
+        self.installAction = installAction
+        self.openPage = openPage
+        self.quit = quit
         self.checker = checker
         self.currentVersion = currentVersion
         self.isEnabled = isEnabled
@@ -62,5 +90,47 @@ final class UpdateStore {
         case .failed:
             manualStatus = .failed
         }
+    }
+
+    var isInstalling: Bool {
+        switch installState {
+        case .downloading, .installing: true
+        case .idle, .failed: false
+        }
+    }
+
+    /// Aktualizace jedním klikem: stáhne, ověří, vymění aplikaci a restartuje. Kde to nejde
+    /// (ad-hoc build, vydání bez DMG), otevře stránku vydání ke stažení ručně.
+    func startUpdate() {
+        guard let release = available, !isInstalling else { return }
+        guard canInstallInPlace(), release.assetURL != nil else {
+            openPage(release.url)
+            return
+        }
+        Task { await install(release) }
+    }
+
+    func install(_ release: ReleaseInfo) async {
+        guard !isInstalling else { return }
+        installState = .downloading(0)
+        do {
+            try await installAction(release) { [weak self] fraction in
+                Task { @MainActor in
+                    guard let self, case .downloading = self.installState else { return }
+                    self.installState = .downloading(fraction)
+                }
+            }
+            installState = .installing
+            quit()
+        } catch {
+            let message = error.localizedDescription
+            installState = .failed(message)
+            onInstallFailure?(message)
+        }
+    }
+
+    /// Stránka vydání – záloha pro případ, že se instalace nepovede.
+    func openReleasePage() {
+        if let release = available { openPage(release.url) }
     }
 }

@@ -138,8 +138,17 @@ struct SettingsView: View {
                 Button("Zkontrolovat nyní") { Task { await updates.checkNow() } }
                     .disabled(updates.manualStatus == .checking)
                 if let release = updates.available {
-                    Button("Dostupná verze \(release.version) – stáhnout") { NSWorkspace.shared.open(release.url) }
-                        .buttonStyle(.borderedProminent)
+                    switch updates.installState {
+                    case .downloading(let fraction):
+                        ProgressView(value: fraction).frame(width: 140)
+                        Text("Stahuji \(release.version)…").foregroundStyle(.secondary)
+                    case .installing:
+                        ProgressView().controlSize(.small)
+                        Text("Instaluji a restartuji…").foregroundStyle(.secondary)
+                    case .idle, .failed:
+                        Button("Aktualizovat na \(release.version)") { updates.startUpdate() }
+                            .buttonStyle(.borderedProminent)
+                    }
                 } else {
                     switch updates.manualStatus {
                     case .checking: ProgressView().controlSize(.small)
@@ -149,7 +158,13 @@ struct SettingsView: View {
                     }
                 }
             }
-            Text("Kontrola se jen zeptá GitHubu na nejnovější vydání; nic se neinstaluje, otevře se stránka ke stažení.")
+            if case .failed(let message) = updates.installState {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+                    Button("Otevřít stránku vydání") { updates.openReleasePage() }
+                }
+            }
+            Text("Aktualizace stáhne podepsané vydání z GitHubu, ověří ho a aplikaci vymění a restartuje; běžící časovač se po restartu obnoví. Kontrola se jen zeptá GitHubu na nejnovější vydání.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
