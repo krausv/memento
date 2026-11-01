@@ -6,6 +6,8 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
     @Environment(TimerController.self) private var timer
+    @Environment(UpdateStore.self) private var updates
+    @AppStorage(SettingsKey.checkForUpdates) private var checkForUpdates = true
     @AppStorage(SettingsKey.rounding) private var roundingMinutes = RoundingOption.none.rawValue
     @AppStorage(SettingsKey.supplierName) private var supplierName = ""
     @AppStorage(SettingsKey.supplierIco) private var supplierIco = ""
@@ -61,6 +63,7 @@ struct SettingsView: View {
                 }
             }
             autoBackupSection
+            updatesSection
             Section("Systém") {
                 Toggle("Spustit při přihlášení", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { setLaunchAtLogin(launchAtLogin) }
@@ -125,6 +128,29 @@ struct SettingsView: View {
         .onChange(of: reminders) {
             AppSettings.reminders = reminders
             if reminders.remindNotRunning || reminders.remindLongRunning || reminders.remindMissingNote { Notifications.requestAuthorization() }
+        }
+    }
+
+    private var updatesSection: some View {
+        Section("Aktualizace") {
+            Toggle("Denně kontrolovat novou verzi", isOn: $checkForUpdates)
+            HStack {
+                Button("Zkontrolovat nyní") { Task { await updates.checkNow() } }
+                    .disabled(updates.manualStatus == .checking)
+                if let release = updates.available {
+                    Button("Dostupná verze \(release.version) – stáhnout") { NSWorkspace.shared.open(release.url) }
+                        .buttonStyle(.borderedProminent)
+                } else {
+                    switch updates.manualStatus {
+                    case .checking: ProgressView().controlSize(.small)
+                    case .upToDate: Label("Máš nejnovější verzi \(updates.version)", systemImage: "checkmark.circle")
+                    case .failed: Label("Kontrola se nepovedla", systemImage: "exclamationmark.triangle")
+                    case nil: Text("Verze \(updates.version)").foregroundStyle(.secondary)
+                    }
+                }
+            }
+            Text("Kontrola se jen zeptá GitHubu na nejnovější vydání; nic se neinstaluje, otevře se stránka ke stažení.")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 

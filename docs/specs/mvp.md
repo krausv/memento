@@ -141,6 +141,8 @@ Po MVP, v tomto pořadí (každé samostatný celek s vlastními testy):
    - **Režim Vizuální časovač:** plovoucí okno (`PomodoroPanelController`, nekradoucí fokus, vždy nahoře, přetahovatelné, poloha se pamatuje) s pozadím a barvami zvolené palety a ciferníkem sluneční hodiny (`SundialDial`: rysky, římské číslice, otáčející se stín gnómonu, oblouk uplynulé části), zbývajícím časem, tečkami série a stejnými tlačítky jako oznámení (Spustit / +5 min / Přeskočit pauzu). Okno je vidět jen při běžícím cyklu a schová se na obrazovce, kde je jiná aplikace ve fullscreenu (okno přes celou obrazovku včetně lišty; kontrola při změně plochy a každé 2 s). Při přepnutí plochy se přesouvá na aktivní (`moveToActiveSpace`), aby neproblikávalo přes fullscreen
    - Logika v `PomodoroPolicy` (čisté funkce) a `PomodoroScheduler`; sdílí vrstvu `Notifications`
 
+8. **Aktualizace** (hotovo) – vydání vznikají v GitHub Actions z tagu `v*` (podepsané a notarizované `Memento.dmg`). Aplikace po startu a pak jednou denně zjistí z `releases/latest`, zda existuje novější verze; pokud ano, v pravém menu se objeví „Dostupná aktualizace X – stáhnout“ (otevře stránku vydání) a totéž v Nastavení › Aktualizace, kde jde kontrolu vypnout (výchozí zapnuto) nebo spustit ručně. Aplikace nic sama neinstaluje; selhání kontroly jsou tichá. Jediné síťové spojení aplikace
+
 ## Kritéria dokončení
 
 - [ ] Aplikace se sestaví z CLI bez varování a všechny testy projdou

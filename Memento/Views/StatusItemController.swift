@@ -10,14 +10,16 @@ final class StatusItemController: NSObject {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let timer: TimerController
     private let container: ModelContainer
+    private let updates: UpdateStore
     private var mainWindow: NSWindow?
     private var noteWindow: NSWindow?
     private var pendingSingleClick: DispatchWorkItem?
     private var lastLeftClick: TimeInterval?
 
-    init(timer: TimerController, container: ModelContainer) {
+    init(timer: TimerController, container: ModelContainer, updates: UpdateStore) {
         self.timer = timer
         self.container = container
+        self.updates = updates
         super.init()
         if let button = item.button {
             button.image = Self.menuBarIcon()
@@ -121,6 +123,11 @@ final class StatusItemController: NSObject {
             }
         }
 
+        if let release = updates.available {
+            menu.addItem(.separator())
+            menu.addItem(ActionItem("Dostupná aktualizace \(release.version) – stáhnout") { NSWorkspace.shared.open(release.url) })
+        }
+
         menu.addItem(.separator())
         menu.addItem(ActionItem("Otevřít Memento") { [weak self] in self?.showMainWindow() })
         menu.addItem(ActionItem("Ukončit", key: "q") { NSApp.terminate(nil) })
@@ -152,6 +159,7 @@ final class StatusItemController: NSObject {
         if mainWindow == nil {
             let root = MainWindow()
                 .environment(timer)
+                .environment(updates)
                 .modelContainer(container)
                 .frame(minWidth: 760, minHeight: 480)
             let host = NSHostingController(rootView: root)

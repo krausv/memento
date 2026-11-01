@@ -6,6 +6,7 @@ import UserNotifications
 struct MementoApp: App {
     private let container: ModelContainer
     private let timer: TimerController
+    private let updates: UpdateStore
     private let statusItem: StatusItemController?
     private let budgetMonitor: BudgetMonitor?
     private let reminders: ReminderScheduler?
@@ -28,7 +29,11 @@ struct MementoApp: App {
         let timer = MainActor.assumeIsolated { TimerController(context: container.mainContext) }
         self.container = container
         self.timer = timer
-        let statusItem = isTesting ? nil : MainActor.assumeIsolated { StatusItemController(timer: timer, container: container) }
+        let updates = MainActor.assumeIsolated { UpdateStore() }
+        self.updates = updates
+        let statusItem = isTesting ? nil : MainActor.assumeIsolated {
+            StatusItemController(timer: timer, container: container, updates: updates)
+        }
         self.statusItem = statusItem
         if isTesting {
             budgetMonitor = nil
@@ -38,6 +43,7 @@ struct MementoApp: App {
             autoBackup = nil
         } else {
             Notifications.configure()
+            MainActor.assumeIsolated { updates.start() }
             let monitor = MainActor.assumeIsolated {
                 BudgetMonitor(context: container.mainContext) { Notifications.post(title: $0, body: $1) }
             }

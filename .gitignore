@@ -7,3 +7,4 @@ DerivedData/
 # Ručně otevřený build v kořeni repozitáře
 /Memento.app/
 *.textClipping
+/Memento.dmg

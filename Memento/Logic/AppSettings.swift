@@ -11,6 +11,7 @@ enum SettingsKey {
     static let lastAutoBackup = "autoBackupLast"
     static let autoBackupError = "autoBackupError"
     static let palette = "colorPalette"
+    static let checkForUpdates = "checkForUpdates"
 }
 
 enum AppSettings {
@@ -63,6 +64,11 @@ enum AppSettings {
         if let date { defaults.set(date.timeIntervalSince1970, forKey: SettingsKey.lastAutoBackup) }
         if let error { defaults.set(error, forKey: SettingsKey.autoBackupError) }
         else { defaults.removeObject(forKey: SettingsKey.autoBackupError) }
+    }
+
+    /// Denní kontrola nové verze na GitHubu; výchozí zapnuto.
+    static var checkForUpdates: Bool {
+        UserDefaults.standard.object(forKey: SettingsKey.checkForUpdates) as? Bool ?? true
     }
 
     static var supplierName: String? { nonEmpty(SettingsKey.supplierName) }

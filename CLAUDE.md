@@ -19,6 +19,12 @@ xcodebuild -scheme Memento test -only-testing:MementoTests/ReportBuilderTests/te
 
 Lint není nastaven.
 
+## Vydání a aktualizace
+
+- Vydání: `git tag v0.2.0 && git push --tags` spustí `.github/workflows/release.yml` (testy → import Developer ID → `scripts/make-dmg.sh` → podepsané a notarizované `Memento.dmg` přiložené k GitHub Release). Verze aplikace se bere z tagu, číslo buildu z čísla běhu. Potřebné secrety jsou popsané v hlavičce workflow.
+- Lokálně: `scripts/make-dmg.sh` (bez Developer ID podepíše ad-hoc; `SIGN_IDENTITY=-` vynutí ad-hoc, `VERSION=0.2.0` přepíše verzi z `project.yml`).
+- Aplikace si denně přes GitHub API (`releases/latest`) zjišťuje novější verzi (`Logic/UpdateChecker`, `UpdateStore`) a jen nabídne stažení – položka v pravém menu a Nastavení › Aktualizace. Verze v `Info.plist` jde z `MARKETING_VERSION` v `project.yml`; před vydáním ji tam zvyš, ať lokální buildy nehlásí starší verzi.
+
 ## Architektura
 
 - `Models/Models.swift` – SwiftData modely `Project` → `TimeEntry` (cascade mazání) a `Tag` (M:N se záznamem). Žádné úkoly: popis práce je volná `TimeEntry.note`. `TimeEntry.end == nil` znamená běžící záznam.
