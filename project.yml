@@ -3,7 +3,7 @@ options:
   bundleIdPrefix: cz.memento
   createIntermediateGroups: true
   deploymentTarget:
-    macOS: "27.0"
+    macOS: "26.0"
 settings:
   base:
     SWIFT_VERSION: "5.0"

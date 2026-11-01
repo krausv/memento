@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   release:
-    # Aplikace cílí na macOS 27; runner musí mít Xcode s odpovídajícím SDK.
+    # Aplikace cílí na macOS 26; runner musí mít Xcode s odpovídajícím SDK.
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4

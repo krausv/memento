@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Projekt
 
-Memento je nativní macOS menu bar aplikace (SwiftUI + SwiftData, macOS 27+, bez externích závislostí) pro sledování času na úkolech a měsíční PDF výkazy po projektech. Úplné zadání MVP včetně „mimo rozsah“ je v `docs/specs/mvp.md` – před přidáním funkcí si ho přečti. Jazyk UI, komentářů a commitů je čeština.
+Memento je nativní macOS menu bar aplikace (SwiftUI + SwiftData, macOS 26+, bez externích závislostí) pro sledování času na úkolech a měsíční PDF výkazy po projektech. Úplné zadání MVP včetně „mimo rozsah“ je v `docs/specs/mvp.md` – před přidáním funkcí si ho přečti. Jazyk UI, komentářů a commitů je čeština.
 
 ## Build a testy
 

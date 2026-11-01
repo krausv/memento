@@ -4,7 +4,7 @@ Jednoduchá nativní macOS aplikace pro sledování času na projektech. Žádn�
 
 ## Technologie
 
-- Swift 5.10+, SwiftUI, cílová verze macOS 27 (Golden Gate) a novější
+- Swift 5.10+, SwiftUI, cílová verze macOS 26 a novější (GitHub runnery zatím nemají macOS 27, takže vydání v Actions by jinak nešlo sestavit)
 - UI používá design system Liquid Glass (standardní prvky ho přebírají od systému, vlastní prvky `glassEffect` / `.glass` tlačítka)
 - Perzistence: SwiftData (lokální úložiště v Application Support)
 - Generování PDF: SwiftUI `ImageRenderer` do PDF kontextu (bez knihoven třetích stran)
