@@ -178,7 +178,7 @@ final class StatusItemController: NSObject {
             // zmizela systémová horní lišta. Po dobu otevřeného okna je aplikace proto běžná
             // a po zavření se vrací do režimu bez ikony v Docku.
             NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { _ in
-                MainActor.assumeIsolated { NSApp.setActivationPolicy(.accessory) }
+                MainActor.assumeIsolated { _ = NSApp.setActivationPolicy(.accessory) }
             }
             mainWindow = window
         }
