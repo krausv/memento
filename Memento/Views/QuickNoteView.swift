@@ -27,7 +27,7 @@ struct QuickNoteView: View {
             HStack {
                 Text(entry.project?.name ?? "Projekt").font(.headline)
                 Spacer()
-                Text(timer.elapsedText)
+                Text(timer.totalElapsedText)
                     .monospacedDigit()
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)

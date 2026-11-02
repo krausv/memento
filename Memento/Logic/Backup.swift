@@ -37,14 +37,16 @@ struct Backup: Codable, Equatable {
         var note: String?
         /// Volitelné, aby se dalo načíst i zálohy vytvořené před zavedením štítků.
         var tagIDs: [UUID]?
+        var carriedSeconds: Double?
 
-        init(id: UUID, projectID: UUID, start: Date, end: Date?, note: String?, tagIDs: [UUID]? = nil) {
+        init(id: UUID, projectID: UUID, start: Date, end: Date?, note: String?, tagIDs: [UUID]? = nil, carriedSeconds: Double? = nil) {
             self.id = id
             self.projectID = projectID
             self.start = start
             self.end = end
             self.note = note
             self.tagIDs = tagIDs
+            self.carriedSeconds = carriedSeconds
         }
     }
 
@@ -123,7 +125,8 @@ enum BackupService {
             entries: entries.compactMap { entry in
                 guard let project = entry.project else { return nil }
                 return .init(id: entry.id, projectID: project.id, start: entry.start, end: entry.end, note: entry.note,
-                             tagIDs: entry.tags.map(\.id))
+                             tagIDs: entry.tags.map(\.id),
+                             carriedSeconds: entry.carriedSeconds > 0 ? entry.carriedSeconds : nil)
             },
             tags: tags.map { .init(id: $0.id, name: $0.name, colorName: $0.colorName, createdAt: $0.createdAt) },
             settings: .init(
@@ -288,6 +291,7 @@ enum BackupService {
             }
             let entry = TimeEntry(project: project, start: data.start, end: data.end, note: data.note)
             entry.id = data.id
+            entry.carriedSeconds = data.carriedSeconds ?? 0
             context.insert(entry)
             entry.tags = (data.tagIDs ?? []).compactMap { localTag[$0] }
             summary.addedEntries += 1

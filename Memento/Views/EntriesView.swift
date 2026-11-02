@@ -150,7 +150,7 @@ struct EntriesView: View {
         .onTapGesture(count: 2) { edit(entry) }
         .contextMenu {
             if !entry.isRunning, let project = entry.project, !project.isArchived {
-                Button("Pokračovat") { _ = try? timer.start(project, note: entry.note, tags: entry.tags) }
+                Button("Pokračovat") { _ = try? timer.start(project, note: entry.note, tags: entry.tags, carrying: entry) }
             }
             Button(entry.isRunning ? "Upravit poznámku" : "Upravit") { edit(entry) }
             Button("Smazat", role: .destructive) { delete(entry) }

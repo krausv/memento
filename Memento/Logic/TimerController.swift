@@ -31,6 +31,11 @@ final class TimerController {
 
     var elapsedText: String { CzFormat.elapsed(elapsed) }
 
+    /// Čas běžícího záznamu včetně záznamů, na které navázal; pro lištu (jinak shodné s `elapsed`).
+    var totalElapsed: TimeInterval { elapsed + (runningEntry?.carriedSeconds ?? 0) }
+
+    var totalElapsedText: String { CzFormat.elapsed(totalElapsed) }
+
     /// Znovu načte běžící záznam z úložiště. Kdyby jich běželo víc (poškozená data),
     /// starší se ukončí v okamžiku začátku následujícího.
     func refresh() {
@@ -49,12 +54,13 @@ final class TimerController {
     }
 
     @discardableResult
-    func start(_ project: Project, note: String? = nil, tags: [Tag] = []) throws -> TimeEntry {
+    func start(_ project: Project, note: String? = nil, tags: [Tag] = [], carrying previous: TimeEntry? = nil) throws -> TimeEntry {
         let moment = clock()
         if let running = runningEntry {
             running.end = max(moment, running.start)
         }
         let entry = TimeEntry(project: project, start: moment, note: note)
+        if let previous { entry.carriedSeconds = previous.carriedSeconds + previous.duration(at: moment) }
         context.insert(entry)
         entry.tags = tags
         try context.save()
@@ -88,7 +94,7 @@ final class TimerController {
     func resumeLast() throws -> TimeEntry? {
         guard let last = lastResumableEntry(), let project = last.project else { return nil }
         let fresh = continuesNote(of: last)
-        return try start(project, note: fresh ? last.note : nil, tags: fresh ? last.tags : [])
+        return try start(project, note: fresh ? last.note : nil, tags: fresh ? last.tags : [], carrying: fresh ? last : nil)
     }
 
     /// Nejrozumnější start bez volby: navázání na poslední záznam, jinak naposledy použitý projekt.

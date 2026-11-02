@@ -46,7 +46,7 @@ final class StatusItemController: NSObject {
         guard let button = item.button else { return }
         if timer.runningEntry != nil {
             button.attributedTitle = NSAttributedString(
-                string: " " + timer.elapsedText,
+                string: " " + timer.totalElapsedText,
                 attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)]
             )
         } else {
@@ -97,7 +97,7 @@ final class StatusItemController: NSObject {
     private func showMenu() {
         let menu = NSMenu()
         if let running = timer.runningEntry {
-            menu.addItem(label("\(running.project?.name ?? "Projekt") · \(timer.elapsedText)"))
+            menu.addItem(label("\(running.project?.name ?? "Projekt") · \(timer.totalElapsedText)"))
             menu.addItem(ActionItem("Poznámka…") { [weak self] in self?.showNoteWindow(for: running) })
             menu.addItem(ActionItem("Stop") { [weak self] in try? self?.timer.stop() })
         } else {

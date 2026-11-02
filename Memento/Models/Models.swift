@@ -44,6 +44,9 @@ final class TimeEntry {
     var project: Project?
     /// Štítky napříč projekty; vztah M:N, smazání štítku ho jen odebere ze záznamů.
     var tags: [Tag] = []
+    /// Čas předchozích záznamů, na které tento navázal (Pokračovat); jen pro zobrazení celkového času
+    /// v liště. Do výkazů a součtů se nepočítá, každý záznam se tam bere zvlášť.
+    var carriedSeconds: Double = 0
 
     init(project: Project, start: Date, end: Date? = nil, note: String? = nil) {
         self.project = project

@@ -68,6 +68,26 @@ final class TimerControllerTests: XCTestCase {
         XCTAssertEqual(running.start, first.end)
     }
 
+    func testResumeCarriesPreviousTimeIntoTotal() throws {
+        let controller = makeController()
+        let project = makeProject("A")
+        _ = try controller.start(project, note: "x")
+        time.addTimeInterval(600)
+        try controller.stop()
+        time.addTimeInterval(60)
+        let resumed = try XCTUnwrap(try controller.resumeLast())
+        time.addTimeInterval(120)
+        controller.refresh()
+        XCTAssertEqual(resumed.carriedSeconds, 600)
+        XCTAssertEqual(controller.elapsed, 120)
+        XCTAssertEqual(controller.totalElapsed, 720)
+        // Nový záznam bez navázání začíná od nuly.
+        try controller.stop()
+        time.addTimeInterval(3 * 3600)
+        let fresh = try XCTUnwrap(try controller.resumeLast())
+        XCTAssertEqual(fresh.carriedSeconds, 0)
+    }
+
     func testStartingSecondTimerStopsFirst() throws {
         let controller = makeController()
         let a = makeProject("A"), b = makeProject("B")
