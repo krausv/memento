@@ -35,7 +35,7 @@ struct EntriesView: View {
     private func billing(_ entry: TimeEntry) -> BillingEntry? {
         guard let project = entry.project else { return nil }
         return BillingEntry(projectKey: project.id, currency: project.currency, hourlyRate: project.hourlyRate,
-                            start: entry.start, end: entry.end)
+                            start: entry.start, end: entry.end, continuesPrevious: entry.carriedSeconds > 0)
     }
 
     private func amountText(_ list: [TimeEntry]) -> String {
@@ -48,16 +48,16 @@ struct EntriesView: View {
             Spacer()
             Label(CzFormat.hours(seconds: Int(entries.reduce(0) { $0 + $1.duration(at: timer.now) })), systemImage: "clock")
             Label(amountText(entries), systemImage: "banknote").fontWeight(.semibold)
-            Text("\(entries.count) záznamů").foregroundStyle(.secondary)
+            Text("\(EntryRowGroup.make(entries).count) záznamů").foregroundStyle(.secondary)
         }
         .monospacedDigit()
         .padding(.horizontal, 20)
         .padding(.vertical, 10)
     }
 
-    private var days: [(day: Date, entries: [TimeEntry])] {
-        Dictionary(grouping: entries) { Calendar.prague.startOfDay(for: $0.start) }
-            .map { (day: $0.key, entries: $0.value) }
+    private var days: [(day: Date, rows: [EntryRowGroup])] {
+        Dictionary(grouping: EntryRowGroup.make(entries)) { Calendar.prague.startOfDay(for: $0.start) }
+            .map { (day: $0.key, rows: $0.value) }
             .sorted { $0.day > $1.day }
     }
 
@@ -109,14 +109,14 @@ struct EntriesView: View {
         List {
             ForEach(days, id: \.day) { group in
                 Section {
-                    ForEach(group.entries) { entry in row(entry) }
+                    ForEach(group.rows) { row($0) }
                 } header: {
                     HStack {
                         Text(CzFormat.dayHeading(group.day))
                         Spacer()
-                        Text(CzFormat.hours(seconds: Int(group.entries.reduce(0) { $0 + $1.duration(at: timer.now) })))
+                        Text(CzFormat.hours(seconds: Int(group.rows.reduce(0) { $0 + $1.duration(at: timer.now) })))
                             .monospacedDigit()
-                        Text(amountText(group.entries)).monospacedDigit().frame(width: 130, alignment: .trailing)
+                        Text(amountText(group.rows.flatMap(\.entries))).monospacedDigit().frame(width: 130, alignment: .trailing)
                     }
                 }
             }
@@ -127,24 +127,25 @@ struct EntriesView: View {
         }
     }
 
-    private func row(_ entry: TimeEntry) -> some View {
-        HStack {
+    private func row(_ group: EntryRowGroup) -> some View {
+        let entry = group.last
+        return HStack {
             VStack(alignment: .leading) {
-                Text(entry.project?.name ?? "—")
-                if let note = entry.note, !note.isEmpty {
+                Text(group.project?.name ?? "—")
+                if let note = group.note, !note.isEmpty {
                     Text(note).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                 }
-                TagChips(tags: entry.tags)
+                TagChips(tags: group.tags)
             }
             Spacer()
-            if let end = entry.end {
-                Text(CzFormat.timeRange(start: entry.start, end: end)).foregroundStyle(.secondary)
-                Text(CzFormat.hours(seconds: Int(entry.duration))).monospacedDigit().frame(width: 80, alignment: .trailing)
+            if let end = group.end {
+                Text(CzFormat.timeRange(start: group.start, end: end)).foregroundStyle(.secondary)
+                Text(CzFormat.hours(seconds: Int(group.duration(at: timer.now)))).monospacedDigit().frame(width: 80, alignment: .trailing)
             } else {
-                Text("\(CzFormat.time(entry.start))– běží").foregroundStyle(.tint)
+                Text("\(CzFormat.time(group.start))– běží").foregroundStyle(.tint)
                 Text(timer.elapsedText).monospacedDigit().frame(width: 80, alignment: .trailing)
             }
-            Text(amountText([entry])).monospacedDigit().foregroundStyle(.secondary).frame(width: 130, alignment: .trailing)
+            Text(amountText(group.entries)).monospacedDigit().foregroundStyle(.secondary).frame(width: 130, alignment: .trailing)
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { edit(entry) }

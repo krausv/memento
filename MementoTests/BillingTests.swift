@@ -26,6 +26,16 @@ final class BillingTests: XCTestCase {
         XCTAssertEqual(totals.first?.amount, report.amount)
     }
 
+    func testContinuedEntriesAreRoundedTogether() {
+        // 2 h + 1 min navázaných po sobě: společně 2 h 1 min → 2 h 15 min, ne 2 h + 15 min.
+        let project = UUID()
+        let first = entry(project, start: date(10, 5), seconds: 2 * 3600)
+        var second = entry(project, start: date(10, 5, 10).addingTimeInterval(60), seconds: 60)
+        second.continuesPrevious = true
+        let totals = Billing.totals([first, second], now: now, rounding: .fifteen)
+        XCTAssertEqual(totals.first?.amount, Decimal(string: "2250"))
+    }
+
     func testRoundingFromExportIsApplied() {
         let project = UUID()
         let totals = Billing.totals([entry(project, start: date(10, 5), seconds: 7 * 60)], now: now, rounding: .fifteen)

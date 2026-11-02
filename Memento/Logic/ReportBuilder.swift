@@ -107,28 +107,16 @@ struct ReportBuilder {
     ) -> Report {
         // Navázané záznamy (stejná poznámka, jen přerušené měření) se ve výkazu ukážou jako jeden řádek:
         // od začátku prvního do konce posledního, délka je součet skutečně odpracovaného času.
-        struct Group {
-            var start: Date
-            var end: Date
-            var note: String?
-            var raw: Int
-        }
-        var groups: [Group] = []
-        for entry in entries
-            .filter({ month.contains($0.start, calendar: calendar) })
-            .sorted(by: { $0.start < $1.start }) {
-            let raw = max(0, Int(entry.end.timeIntervalSince(entry.start).rounded()))
-            if entry.continuesPrevious, var last = groups.last, last.end <= entry.start {
-                last.end = max(last.end, entry.end)
-                last.raw += raw
-                if let note = entry.note, !note.isEmpty { last.note = note }
-                groups[groups.count - 1] = last
-            } else {
-                groups.append(Group(start: entry.start, end: entry.end, note: entry.note, raw: raw))
-            }
-        }
-        let rows = groups.map {
-            Report.Row(start: $0.start, end: $0.end, note: $0.note, seconds: rounding.apply(toSeconds: $0.raw))
+        let inMonth = entries.filter { month.contains($0.start, calendar: calendar) }
+        let rows = EntryChains.group(
+            inMonth, project: { _ in nil }, start: \.start, end: { $0.end }, continues: \.continuesPrevious
+        ).map { chain -> Report.Row in
+            let raw = chain.reduce(0) { $0 + max(0, Int($1.end.timeIntervalSince($1.start).rounded())) }
+            let note = chain.last(where: { !($0.note ?? "").isEmpty })?.note ?? chain.last?.note
+            return Report.Row(
+                start: chain[0].start, end: chain.map(\.end).max() ?? chain[0].end,
+                note: note, seconds: rounding.apply(toSeconds: raw)
+            )
         }
 
         let total = rows.reduce(0) { $0 + $1.seconds }

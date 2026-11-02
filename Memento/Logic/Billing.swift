@@ -14,6 +14,8 @@ struct BillingEntry: Equatable {
     var start: Date
     /// `nil` = běží, počítá se do `now`.
     var end: Date?
+    /// Navazuje na předchozí záznam (Pokračovat) – počítá se spolu s ním jako jeden záznam.
+    var continuesPrevious = false
 }
 
 enum Billing {
@@ -29,12 +31,22 @@ enum Billing {
         _ entries: [BillingEntry], now: Date, rounding: RoundingOption, calendar: Calendar = .prague
     ) -> [CurrencyAmount] {
         struct Key: Hashable { var project: UUID; var month: ReportMonth }
+        var byKey: [Key: [BillingEntry]] = [:]
+        for entry in entries {
+            byKey[Key(project: entry.projectKey, month: ReportMonth(containing: entry.start, calendar: calendar)), default: []]
+                .append(entry)
+        }
         var seconds: [Key: Int] = [:]
         var info: [Key: BillingEntry] = [:]
-        for entry in entries {
-            let key = Key(project: entry.projectKey, month: ReportMonth(containing: entry.start, calendar: calendar))
-            seconds[key, default: 0] += Self.seconds(entry, now: now, rounding: rounding)
-            info[key] = entry
+        for (key, list) in byKey {
+            // Navázané záznamy se zaokrouhlují společně, stejně jako řádek ve výkazu.
+            for chain in EntryChains.group(
+                list, project: { _ in nil }, start: \.start, end: { $0.end ?? now }, continues: \.continuesPrevious
+            ) {
+                let raw = chain.reduce(0) { $0 + max(0, Int((($1.end ?? now).timeIntervalSince($1.start)).rounded())) }
+                seconds[key, default: 0] += rounding.apply(toSeconds: raw)
+            }
+            info[key] = list[0]
         }
         var byCurrency: [String: Decimal] = [:]
         for (key, total) in seconds {

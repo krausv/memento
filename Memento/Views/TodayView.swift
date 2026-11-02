@@ -119,31 +119,34 @@ struct TodayView: View {
 
     @ViewBuilder
     private func entriesList(_ entries: [TimeEntry]) -> some View {
-        if entries.isEmpty {
+        let rows = EntryRowGroup.make(entries)
+        if rows.isEmpty {
             Text("Dnes zatím žádné záznamy.").font(.callout).foregroundStyle(.secondary)
         } else {
-            ForEach(entries) { entry in
+            ForEach(rows) { group in
                 HStack {
                     VStack(alignment: .leading) {
-                        Text(entry.project?.name ?? "—")
-                        if let note = entry.note, !note.isEmpty {
+                        Text(group.project?.name ?? "—")
+                        if let note = group.note, !note.isEmpty {
                             Text(note).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                         }
-                        TagChips(tags: entry.tags)
+                        TagChips(tags: group.tags)
                     }
                     Spacer()
-                    if let end = entry.end {
-                        Text(CzFormat.timeRange(start: entry.start, end: end)).foregroundStyle(.secondary)
-                        Text(CzFormat.hours(seconds: Int(entry.duration))).monospacedDigit()
+                    if let end = group.end {
+                        Text(CzFormat.timeRange(start: group.start, end: end)).foregroundStyle(.secondary)
+                        Text(CzFormat.hours(seconds: Int(group.duration(at: timer.now)))).monospacedDigit()
                             .frame(width: 80, alignment: .trailing)
                     } else {
-                        Text("\(CzFormat.time(entry.start))– běží").foregroundStyle(.tint)
+                        Text("\(CzFormat.time(group.start))– běží").foregroundStyle(.tint)
                         Text(timer.elapsedText).monospacedDigit().frame(width: 80, alignment: .trailing)
                     }
                 }
                 .contentShape(Rectangle())
-                .onTapGesture(count: 2) { if entry.isRunning { editingNote = entry } else { editing = entry } }
-                if entry.id != entries.last?.id { Divider() }
+                .onTapGesture(count: 2) {
+                    if group.isRunning { editingNote = group.last } else { editing = group.last }
+                }
+                if group.id != rows.last?.id { Divider() }
             }
         }
     }
