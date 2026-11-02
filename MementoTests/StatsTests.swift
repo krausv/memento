@@ -95,4 +95,26 @@ final class StatsTests: XCTestCase {
         XCTAssertEqual(StatsBuilder.interval(for: .month, containing: StatsBuilder.shift(date(1, 31), period: .month, by: 1)).start, date(2, 1))
         XCTAssertEqual(StatsBuilder.interval(for: .year, containing: StatsBuilder.shift(date(10, 1), period: .year, by: -1)).start, date(1, 1, year: 2025))
     }
+
+    func testWorkHoursSplit() {
+        // Po 5. 10. 2026: 8:00–10:00 → 1 h mimo (8–9) a 1 h v pracovní době (9–10).
+        let r = WorkHours.split(start: date(10, 5, 8), end: date(10, 5, 10), schedule: ReminderSettings())
+        XCTAssertEqual(r, WorkHours.Split(inside: 3600, outside: 3600))
+        // Sobota 10. 10. je celá mimo.
+        let weekend = WorkHours.split(start: date(10, 10, 10), end: date(10, 10, 12), schedule: ReminderSettings())
+        XCTAssertEqual(weekend, WorkHours.Split(inside: 0, outside: 7200))
+        // Přes půlnoc: 16:00–18:00 v pracovní/mimo, pátek → sobota.
+        let night = WorkHours.split(start: date(10, 9, 16), end: date(10, 10, 1), schedule: ReminderSettings())
+        XCTAssertEqual(night, WorkHours.Split(inside: 3600, outside: 8 * 3600))
+    }
+
+    func testStatsSplitsWorkHours() {
+        let stats = StatsBuilder.build(
+            period: .week, anchor: date(10, 5, 12),
+            entries: [entry("A", date(10, 5, 8), hours: 2)], now: date(10, 5, 12), schedule: ReminderSettings()
+        )
+        XCTAssertEqual(stats.outsideWorkSeconds, 3600)
+        XCTAssertEqual(stats.workPoints.map(\.seconds).reduce(0, +), stats.totalSeconds)
+        XCTAssertEqual(stats.workPoints.count, 2)
+    }
 }

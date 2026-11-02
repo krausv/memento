@@ -21,6 +21,14 @@ struct TodayView: View {
         Int(list.reduce(0) { $0 + $1.duration(at: timer.now) })
     }
 
+    /// Dnes odpracované sekundy mimo pracovní dobu (podle Nastavení › Připomínky).
+    private func outsideWorkSeconds(_ list: [TimeEntry]) -> Int {
+        let schedule = AppSettings.reminders
+        return list.reduce(0) {
+            $0 + WorkHours.split(start: $1.start, end: $1.end ?? timer.now, schedule: schedule).outside
+        }
+    }
+
     private var targetProjects: [Project] {
         projects.filter { !$0.isArchived && ($0.targetAmount ?? 0) > 0 }
     }
@@ -34,6 +42,11 @@ struct TodayView: View {
                     Spacer()
                     Label("Odpracováno dnes: \(CzFormat.hours(seconds: workedSeconds(entries)))", systemImage: "clock")
                         .font(.title3.bold()).monospacedDigit()
+                }
+                let outside = outsideWorkSeconds(entries)
+                if outside > 0 {
+                    Label("Z toho mimo pracovní dobu: \(CzFormat.hours(seconds: outside))", systemImage: "moon")
+                        .font(.callout).foregroundStyle(.secondary).monospacedDigit()
                 }
                 planCard(entries)
                 card("Dnešní záznamy") { entriesList(entries) }

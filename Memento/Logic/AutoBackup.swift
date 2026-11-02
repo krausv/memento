@@ -102,6 +102,42 @@ enum AutoBackupService {
     }
 }
 
+extension AutoBackupService {
+    /// Záložní složka pro zálohy před aktualizací, když není zapnutá automatická záloha do vlastní složky.
+    static var fallbackFolder: URL {
+        StoreLocation.appSupport()
+            .appendingPathComponent(StoreLocation.folderName, isDirectory: true)
+            .appendingPathComponent("Zálohy", isDirectory: true)
+    }
+
+    /// Záloha těsně před výměnou aplikace. Použije složku z Nastavení, pokud je zálohování zapnuté a složka
+    /// dostupná; jinak složku `fallbackFolder`, takže se udělá vždy. Selhání se vrací jako chyba (aktualizace se pak nespustí).
+    @MainActor
+    @discardableResult
+    static func runBeforeUpdate(
+        context: ModelContext,
+        now: Date = Date(),
+        defaults: UserDefaults = .standard,
+        fallback: URL = AutoBackupService.fallbackFolder
+    ) throws -> URL {
+        var settings = AppSettings.autoBackup(defaults)
+        var isDirectory: ObjCBool = false
+        let configuredUsable = settings.enabled && settings.folderPath.map {
+            FileManager.default.fileExists(atPath: $0, isDirectory: &isDirectory) && isDirectory.boolValue
+                && FileManager.default.isWritableFile(atPath: $0)
+        } == true
+        if configuredUsable {
+            let url = try run(context: context, settings: settings, now: now, defaults: defaults)
+            AppSettings.recordAutoBackup(date: now, error: nil, defaults)
+            return url
+        }
+        try FileManager.default.createDirectory(at: fallback, withIntermediateDirectories: true)
+        settings.folderPath = fallback.path
+        settings.keepCount = max(settings.keepCount, 5)
+        return try run(context: context, settings: settings, now: now, defaults: defaults)
+    }
+}
+
 /// Spouští automatickou zálohu, když je „na řadě“: po startu, po probuzení Macu a pak jednou za hodinu.
 @MainActor
 final class AutoBackupScheduler {

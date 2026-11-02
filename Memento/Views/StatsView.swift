@@ -9,7 +9,16 @@ struct StatsView: View {
     @Query(sort: \Project.name) private var projects: [Project]
 
     @AppStorage("statsPeriod") private var periodRaw = StatsPeriod.week.rawValue
+    @AppStorage("statsChartMode") private var chartModeRaw = ChartMode.projects.rawValue
     @State private var anchor = Date()
+
+    private enum ChartMode: String, CaseIterable, Identifiable {
+        case projects, workHours
+        var id: String { rawValue }
+        var title: String { self == .projects ? "Podle projektů" : "Podle pracovní doby" }
+    }
+
+    private var chartMode: ChartMode { ChartMode(rawValue: chartModeRaw) ?? .projects }
 
     private var period: StatsPeriod { StatsPeriod(rawValue: periodRaw) ?? .week }
 
@@ -23,9 +32,11 @@ struct StatsView: View {
     var body: some View {
         // Jedno sestavení pro celé view; průběžný čas se bere jen z běžícího časovače.
         let all = statsEntries
-        let stats = StatsBuilder.build(period: period, anchor: anchor, entries: all, now: timer.now)
+        let schedule = AppSettings.reminders
+        let stats = StatsBuilder.build(period: period, anchor: anchor, entries: all, now: timer.now, schedule: schedule)
         let previous = StatsBuilder.build(
-            period: period, anchor: StatsBuilder.shift(anchor, period: period, by: -1), entries: all, now: timer.now
+            period: period, anchor: StatsBuilder.shift(anchor, period: period, by: -1), entries: all, now: timer.now,
+            schedule: schedule
         )
 
         ScrollView {
@@ -37,7 +48,17 @@ struct StatsView: View {
                         .frame(maxWidth: .infinity, minHeight: 240)
                 } else {
                     tiles(stats, previous: previous)
-                    card("Hodiny v čase") { timeChart(stats) }
+                    card("Hodiny v čase") {
+                        Picker("Rozdělení", selection: $chartModeRaw) {
+                            ForEach(ChartMode.allCases) { Text($0.title).tag($0.rawValue) }
+                        }
+                        .pickerStyle(.segmented).labelsHidden().fixedSize()
+                        timeChart(stats)
+                        if chartMode == .workHours {
+                            Text("Mimo pracovní dobu: \(CzFormat.hours(seconds: stats.outsideWorkSeconds)) z \(CzFormat.hours(seconds: stats.totalSeconds)). Pracovní doba je podle Nastavení › Připomínky.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
                     targetCard(stats)
                     HStack(alignment: .top, spacing: 16) {
                         card("Podle projektů") { sliceChart(stats.byProject, tint: .accentColor) }
@@ -112,16 +133,34 @@ struct StatsView: View {
         .background(theme.surface, in: .rect(cornerRadius: 14))
     }
 
+    private static let insideName = "V pracovní době"
+    private static let outsideName = "Mimo pracovní dobu"
+
     private func timeChart(_ stats: Stats) -> some View {
         let unit: Calendar.Component = period == .year ? .month : .day
-        return Chart(stats.points) { point in
-            BarMark(
-                x: .value("Období", point.bucket, unit: unit),
-                y: .value("Hodiny", Double(point.seconds) / 3600)
-            )
-            .foregroundStyle(by: .value("Projekt", point.project))
+        return Chart {
+            if chartMode == .projects {
+                ForEach(stats.points) { point in
+                    BarMark(
+                        x: .value("Období", point.bucket, unit: unit),
+                        y: .value("Hodiny", Double(point.seconds) / 3600)
+                    )
+                    .foregroundStyle(by: .value("Projekt", point.project))
+                }
+            } else {
+                ForEach(stats.workPoints) { point in
+                    BarMark(
+                        x: .value("Období", point.bucket, unit: unit),
+                        y: .value("Hodiny", Double(point.seconds) / 3600)
+                    )
+                    .foregroundStyle(by: .value("Doba", point.insideWorkHours ? Self.insideName : Self.outsideName))
+                }
+            }
         }
-        .chartForegroundStyleScale(range: theme.chart)
+        .chartForegroundStyleScale(
+            domain: chartMode == .projects ? stats.points.map(\.project).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } } : [Self.insideName, Self.outsideName],
+            range: chartMode == .projects ? theme.chart : [Color.accentColor, theme.secondaryAccent]
+        )
         .chartXScale(domain: stats.interval.start...stats.interval.end)
         .chartXAxis {
             switch period {

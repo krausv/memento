@@ -42,6 +42,14 @@ struct Stats: Equatable {
         var id: String { "\(bucket.timeIntervalSinceReferenceDate)|\(project)" }
     }
 
+    /// Hodiny sloupce rozdělené na pracovní dobu a mimo ni.
+    struct WorkPoint: Equatable, Identifiable {
+        var bucket: Date
+        var insideWorkHours: Bool
+        var seconds: Int
+        var id: String { "\(bucket.timeIntervalSinceReferenceDate)|\(insideWorkHours)" }
+    }
+
     struct Slice: Equatable, Identifiable {
         var name: String
         var seconds: Int
@@ -55,6 +63,10 @@ struct Stats: Equatable {
     /// Začátky všech sloupců grafu včetně prázdných.
     let buckets: [Date]
     let points: [Point]
+    /// Totéž co `points`, ale rozdělené na pracovní dobu a mimo ni (podle Nastavení › Připomínky).
+    let workPoints: [WorkPoint]
+    /// Sekundy mimo pracovní dobu (součást `totalSeconds`).
+    let outsideWorkSeconds: Int
     let byProject: [Slice]
     /// Záznam s víc štítky se počítá ke každému z nich, součet tedy může být větší než `totalSeconds`.
     let byTag: [Slice]
@@ -82,6 +94,7 @@ enum StatsBuilder {
         anchor: Date,
         entries: [StatsEntry],
         now: Date,
+        schedule: ReminderSettings = ReminderSettings(),
         calendar: Calendar = .prague
     ) -> Stats {
         let interval = interval(for: period, containing: anchor, calendar: calendar)
@@ -97,6 +110,8 @@ enum StatsBuilder {
         var perPoint: [String: Stats.Point] = [:]
         var perProject: [String: Int] = [:]
         var perTag: [String: Int] = [:]
+        var perWork: [String: Stats.WorkPoint] = [:]
+        var outside = 0
         var days = Set<Date>()
         var total = 0
         var count = 0
@@ -108,6 +123,15 @@ enum StatsBuilder {
                 ?? Stats.Point(bucket: bucket, project: entry.projectName, seconds: 0)
             point.seconds += seconds
             perPoint[point.id] = point
+
+            let split = WorkHours.split(start: entry.start, end: entry.end ?? now, schedule: schedule, calendar: calendar)
+            for (inside, value) in [(true, split.inside), (false, split.outside)] where value > 0 {
+                var workPoint = Stats.WorkPoint(bucket: bucket, insideWorkHours: inside, seconds: 0)
+                workPoint = perWork[workPoint.id] ?? workPoint
+                workPoint.seconds += value
+                perWork[workPoint.id] = workPoint
+            }
+            outside += split.outside
 
             perProject[entry.projectName, default: 0] += seconds
             let tags = Set(entry.tags)
@@ -126,6 +150,8 @@ enum StatsBuilder {
         return Stats(
             period: period, interval: interval, buckets: buckets,
             points: perPoint.values.sorted { ($0.bucket, $0.project) < ($1.bucket, $1.project) },
+            workPoints: perWork.values.sorted { ($0.bucket, $1.insideWorkHours ? 1 : 0) < ($1.bucket, $0.insideWorkHours ? 1 : 0) },
+            outsideWorkSeconds: outside,
             byProject: slices(perProject), byTag: slices(perTag),
             totalSeconds: total, entryCount: count, workedDays: days.count
         )

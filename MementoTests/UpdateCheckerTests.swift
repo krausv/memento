@@ -189,6 +189,25 @@ final class UpdateStoreInstallTests: XCTestCase {
         XCTAssertTrue(store.isInstalling)
     }
 
+    func testBackupRunsBeforeInstallAndFailureBlocksIt() async {
+        let spy = Spy()
+        let store = await makeStore(spy: spy)
+        var order: [String] = []
+        store.beforeInstall = { order.append("záloha") }
+        await store.install(release)
+        XCTAssertEqual(order, ["záloha"])
+        XCTAssertEqual(spy.installed.count, 1)
+
+        let blockedSpy = Spy()
+        let blocked = await makeStore(spy: blockedSpy)
+        blocked.beforeInstall = { throw AutoBackupError.noFolder }
+        await blocked.install(release)
+        XCTAssertEqual(blockedSpy.installed.count, 0, "bez zálohy se aplikace nestahuje ani nevyměňuje")
+        XCTAssertEqual(blockedSpy.quits, 0)
+        XCTAssertEqual(blockedSpy.failures.count, 1)
+        XCTAssertTrue(blockedSpy.failures[0].contains("zálohovat"))
+    }
+
     func testFailedInstallKeepsAppRunningAndReports() async {
         let spy = Spy()
         let store = await makeStore(spy: spy, fail: UpdateInstallError.signature)

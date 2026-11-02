@@ -27,6 +27,9 @@ final class UpdateStore {
     /// Zavolá se, když instalace selže (aby se to dozvěděl i ten, kdo ji spustil z menu).
     @ObservationIgnored var onInstallFailure: ((String) -> Void)?
 
+    /// Spustí se těsně před stažením a výměnou aplikace; když selže, aktualizace se neprovede (data zůstanou nedotčená).
+    @ObservationIgnored var beforeInstall: (() throws -> Void)?
+
     @ObservationIgnored private let checker: UpdateChecker
     @ObservationIgnored private let canInstallInPlace: () -> Bool
     @ObservationIgnored private let installAction: (ReleaseInfo, @escaping @Sendable (Double) -> Void) async throws -> Void
@@ -114,6 +117,11 @@ final class UpdateStore {
         guard !isInstalling else { return }
         installState = .downloading(0)
         do {
+            do {
+                try beforeInstall?()
+            } catch {
+                throw UpdateBackupError(detail: error.localizedDescription)
+            }
             try await installAction(release) { [weak self] fraction in
                 Task { @MainActor in
                     guard let self, case .downloading = self.installState else { return }
@@ -132,5 +140,13 @@ final class UpdateStore {
     /// Stránka vydání – záloha pro případ, že se instalace nepovede.
     func openReleasePage() {
         if let release = available { openPage(release.url) }
+    }
+}
+
+/// Záloha před aktualizací se nepovedla – aplikace se radši nevymění.
+struct UpdateBackupError: LocalizedError {
+    let detail: String
+    var errorDescription: String? {
+        "Před aktualizací se nepodařilo zálohovat data (\(detail)). Aktualizace se neprovedla."
     }
 }

@@ -98,6 +98,14 @@ final class AutoBackupServiceTests: XCTestCase {
         settings.keepCount = 1
     }
 
+    func testBackupBeforeUpdateFallsBackToOwnFolderWhenNotConfigured() throws {
+        
+        let fallback = folder.appendingPathComponent("fallback")
+        let url = try AutoBackupService.runBeforeUpdate(context: makeContext(), defaults: defaults, fallback: fallback)
+        XCTAssertEqual(url.deletingLastPathComponent().path, fallback.path)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+    }
+
     func testFailsClearlyWhenFolderMissingOrUnset() throws {
         let context = try makeContext()
         XCTAssertThrowsError(try AutoBackupService.run(context: context, settings: AutoBackupSettings(), defaults: defaults)) {

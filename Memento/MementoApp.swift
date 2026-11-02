@@ -45,6 +45,7 @@ struct MementoApp: App {
             Notifications.configure()
             MainActor.assumeIsolated {
                 updates.onInstallFailure = { Notifications.post(title: "Aktualizace se nepovedla", body: $0) }
+                updates.beforeInstall = { try AutoBackupService.runBeforeUpdate(context: container.mainContext) }
                 updates.start()
             }
             let monitor = MainActor.assumeIsolated {
