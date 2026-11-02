@@ -28,10 +28,14 @@ struct TargetForecast: Equatable {
     var requiredPerDaySeconds: Int? { workDaysLeft > 0 ? remainingSeconds / workDaysLeft : nil }
 
     /// Kolik ještě zbývá odpracovat dnes, aby se zbytek měsíce rozložil rovnoměrně mezi zbývající pracovní dny.
+    /// `remainingSeconds` už zahrnuje dnes odpracovaný čas, proto se denní plán určí z hodnoty na začátku dne
+    /// (zbývá + dnes odpracováno) a od něj se odpracované odečte – jinak by odhad při práci klesal jen o zlomek.
     /// 0, když dnes už nebo ještě není co plánovat (víkend, po pracovní době) nebo je cíl splněn.
-    var requiredTodaySeconds: Int {
+    func requiredTodaySeconds(workedToday: Int = 0) -> Int {
         guard todayCapacitySeconds > 0, workDaysLeft > 0, remainingSeconds > 0 else { return 0 }
-        return (remainingSeconds + workDaysLeft - 1) / workDaysLeft
+        let total = remainingSeconds + max(0, workedToday)
+        let plan = (total + workDaysLeft - 1) / workDaysLeft
+        return min(remainingSeconds, max(0, plan - workedToday))
     }
 
     static let realisticShare = 0.8

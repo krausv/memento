@@ -84,7 +84,7 @@ struct TodayView: View {
     private func planRow(_ project: Project, _ status: TargetStatus, workedToday: Int) -> some View {
         if let forecast = TargetForecast.compute(status: status, hourlyRate: project.hourlyRate,
                                                  now: timer.now, schedule: AppSettings.reminders) {
-            let required = forecast.requiredTodaySeconds
+            let required = forecast.requiredTodaySeconds(workedToday: workedToday)
             let planned = workedToday + required
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
