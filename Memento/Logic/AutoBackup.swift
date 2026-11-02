@@ -41,6 +41,16 @@ enum AutoBackupPolicy {
         return now.timeIntervalSince(last) >= settings.frequency.interval - tolerance
     }
 
+    /// Nejmenší odstup záloh vyvolaných změnou, ať se při častém přepínání nezaplní složka.
+    static let changeGap: TimeInterval = 15 * 60
+
+    /// Záloha po změně dat (start/stop měření): hned, ale nejvýš jednou za `changeGap`.
+    static func isDueAfterChange(now: Date, lastBackup: Date?, settings: AutoBackupSettings) -> Bool {
+        guard settings.enabled, settings.folderPath != nil else { return false }
+        guard let last = lastBackup else { return true }
+        return now.timeIntervalSince(last) >= changeGap
+    }
+
     static let prefix = "memento-auto-"
 
     static func fileName(for date: Date) -> String {
@@ -133,6 +143,14 @@ final class AutoBackupScheduler {
         let settings = AppSettings.autoBackup(defaults)
         let now = clock()
         guard AutoBackupPolicy.isDue(now: now, lastBackup: AppSettings.lastAutoBackup(defaults), settings: settings) else { return }
+        perform(settings: settings, now: now)
+    }
+
+    /// Volá se po změně měření: zálohuje i mimo denní/týdenní plán, aby se neztratila práce od poslední zálohy.
+    func checkAfterChange() {
+        let settings = AppSettings.autoBackup(defaults)
+        let now = clock()
+        guard AutoBackupPolicy.isDueAfterChange(now: now, lastBackup: AppSettings.lastAutoBackup(defaults), settings: settings) else { return }
         perform(settings: settings, now: now)
     }
 

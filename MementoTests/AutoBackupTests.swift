@@ -18,6 +18,14 @@ final class AutoBackupPolicyTests: XCTestCase {
         XCTAssertTrue(AutoBackupPolicy.isDue(now: now, lastBackup: nil, settings: settings()))
     }
 
+    func testChangeBackupIsDueRegardlessOfFrequencyButThrottled() {
+        XCTAssertTrue(AutoBackupPolicy.isDueAfterChange(now: now, lastBackup: nil, settings: settings(.weekly)))
+        XCTAssertTrue(AutoBackupPolicy.isDueAfterChange(now: now, lastBackup: now.addingTimeInterval(-20 * 60), settings: settings(.weekly)))
+        XCTAssertFalse(AutoBackupPolicy.isDueAfterChange(now: now, lastBackup: now.addingTimeInterval(-5 * 60), settings: settings(.weekly)))
+        XCTAssertFalse(AutoBackupPolicy.isDueAfterChange(now: now, lastBackup: nil, settings: settings(enabled: false)))
+        XCTAssertFalse(AutoBackupPolicy.isDueAfterChange(now: now, lastBackup: nil, settings: settings(folder: nil)))
+    }
+
     func testDailyAndWeeklyIntervals() {
         let dayAgo = now.addingTimeInterval(-24 * 3600)
         XCTAssertTrue(AutoBackupPolicy.isDue(now: now, lastBackup: dayAgo, settings: settings(.daily)))

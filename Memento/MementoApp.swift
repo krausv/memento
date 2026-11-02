@@ -19,10 +19,10 @@ struct MementoApp: App {
         let isTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
         let container: ModelContainer
         do {
-            container = try ModelContainer(
-                for: Project.self, TimeEntry.self, Tag.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: isTesting)
-            )
+            let configuration = isTesting
+                ? ModelConfiguration(isStoredInMemoryOnly: true)
+                : ModelConfiguration(url: try StoreLocation.prepare())
+            container = try ModelContainer(for: Project.self, TimeEntry.self, Tag.self, configurations: configuration)
         } catch {
             fatalError("Nepodařilo se otevřít úložiště: \(error)")
         }
@@ -102,7 +102,15 @@ struct MementoApp: App {
                     Notifications.post(title: "Automatická záloha selhala", body: $0)
                 }
             }
-            MainActor.assumeIsolated { backups.start() }
+            MainActor.assumeIsolated {
+                backups.start()
+                // Záloha po každé změně měření (start, stop, posun začátku), ne jen jednou za den.
+                let previous = timer.onChange
+                timer.onChange = { [weak backups] in
+                    previous?()
+                    backups?.checkAfterChange()
+                }
+            }
             autoBackup = backups
         }
     }

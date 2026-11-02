@@ -61,6 +61,11 @@ struct QuickNoteView: View {
     }
 
     private func save() {
+        // Záznam mezitím mohl zmizet z databáze (smazání, obnova zálohy); sahat na něj by shodilo aplikaci.
+        guard !entry.isDeleted, entry.modelContext != nil, timer.runningEntry?.id == entry.id else {
+            errorMessage = "Záznam už neexistuje nebo neběží. Zavři okno a zkus to znovu."
+            return
+        }
         do {
             try timer.moveStart(to: RunningStart.rounded(start, original: entry.start))
         } catch {
