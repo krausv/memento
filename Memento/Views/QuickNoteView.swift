@@ -11,10 +11,13 @@ struct QuickNoteView: View {
 
     @State private var note: String
     @State private var tags: [Tag]
+    @State private var start: Date
+    @State private var errorMessage: String?
 
     init(entry: TimeEntry, close: @escaping () -> Void) {
         self.entry = entry
         self.close = close
+        _start = State(initialValue: entry.start)
         _note = State(initialValue: entry.note ?? "")
         _tags = State(initialValue: entry.tags)
     }
@@ -30,10 +33,15 @@ struct QuickNoteView: View {
                     .padding(.vertical, 4)
                     .glassEffect(.regular, in: .capsule)
             }
+            DatePicker("Začátek", selection: $start, in: ...Date())
+                .environment(\.locale, CzFormat.locale)
+                .environment(\.calendar, .prague)
+                .environment(\.timeZone, Calendar.prague.timeZone)
             BulletTextEditor(text: $note, autofocus: true)
                 .frame(minHeight: 200)
                 .glassEffect(.regular, in: .rect(cornerRadius: 14))
             TagPicker(selected: $tags)
+            if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
             GlassEffectContainer(spacing: 8) {
                 HStack(spacing: 8) {
                     Spacer()
@@ -53,6 +61,12 @@ struct QuickNoteView: View {
     }
 
     private func save() {
+        do {
+            try timer.moveStart(to: RunningStart.rounded(start, original: entry.start))
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
         entry.note = BulletText.clean(note)
         entry.tags = tags
         try? context.save()

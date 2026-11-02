@@ -37,6 +37,37 @@ final class TimerControllerTests: XCTestCase {
         XCTAssertEqual(entry.duration, 90)
     }
 
+    func testMoveStartEarlierExtendsRunningEntry() throws {
+        let controller = makeController()
+        let entry = try controller.start(makeProject("A"))
+        time.addTimeInterval(600)
+        try controller.moveStart(to: time.addingTimeInterval(-3600))
+        XCTAssertEqual(entry.duration(at: time), 3600)
+        XCTAssertNil(entry.end)
+    }
+
+    func testMoveStartRejectsFutureAndOverlap() throws {
+        let controller = makeController()
+        let project = makeProject("A")
+        let first = try controller.start(project)
+        time.addTimeInterval(1800)
+        try controller.stop()
+        time.addTimeInterval(1800)
+        let running = try controller.start(project)
+        time.addTimeInterval(600)
+
+        XCTAssertThrowsError(try controller.moveStart(to: time.addingTimeInterval(60))) {
+            XCTAssertEqual($0 as? EntryValidationError, .startInFuture)
+        }
+        XCTAssertThrowsError(try controller.moveStart(to: first.start.addingTimeInterval(60))) {
+            XCTAssertEqual($0 as? EntryValidationError, .overlap)
+        }
+        XCTAssertEqual(running.start, time.addingTimeInterval(-600))
+        // Těsně za koncem předchozího záznamu to jde.
+        try controller.moveStart(to: first.end!)
+        XCTAssertEqual(running.start, first.end)
+    }
+
     func testStartingSecondTimerStopsFirst() throws {
         let controller = makeController()
         let a = makeProject("A"), b = makeProject("B")

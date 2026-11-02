@@ -255,17 +255,21 @@ struct EntryForm: View {
     }
 }
 
-/// Úprava poznámky běžícího záznamu (čas měnit nejde, dokud běží).
+/// Úprava poznámky běžícího záznamu a začátku (konec se nastavuje zastavením).
 struct NoteForm: View {
     @Environment(\.modelContext) private var context
+    @Environment(TimerController.self) private var timer
     @Environment(\.dismiss) private var dismiss
 
     let entry: TimeEntry
     @State private var note: String
     @State private var tags: [Tag]
+    @State private var start: Date
+    @State private var errorMessage: String?
 
     init(entry: TimeEntry) {
         self.entry = entry
+        _start = State(initialValue: entry.start)
         _note = State(initialValue: entry.note ?? "")
         _tags = State(initialValue: entry.tags)
     }
@@ -273,13 +277,18 @@ struct NoteForm: View {
     var body: some View {
         Form {
             Text(entry.project?.name ?? "").foregroundStyle(.secondary)
+            DatePicker("Začátek", selection: $start, in: ...Date())
             BulletTextEditor(text: $note, autofocus: true).frame(minHeight: 160)
                 .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 10))
             TagPicker(selected: $tags)
+            if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
         }
+        .environment(\.locale, CzFormat.locale)
+        .environment(\.calendar, .prague)
+        .environment(\.timeZone, Calendar.prague.timeZone)
         .formStyle(.grouped)
         .frame(width: 460)
-        .navigationTitle("Poznámka")
+        .navigationTitle("Běžící záznam")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Zrušit") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) { Button("Uložit", action: save) }
@@ -287,6 +296,12 @@ struct NoteForm: View {
     }
 
     private func save() {
+        do {
+            try timer.moveStart(to: RunningStart.rounded(start, original: entry.start))
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
         entry.note = BulletText.clean(note)
         entry.tags = tags
         try? context.save()

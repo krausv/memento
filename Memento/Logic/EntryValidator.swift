@@ -3,11 +3,13 @@ import Foundation
 enum EntryValidationError: LocalizedError, Equatable {
     case endNotAfterStart
     case overlap
+    case startInFuture
 
     var errorDescription: String? {
         switch self {
         case .endNotAfterStart: "Konec musí být po začátku."
         case .overlap: "Záznam se překrývá s jiným záznamem."
+        case .startInFuture: "Začátek nemůže být v budoucnu."
         }
     }
 }
