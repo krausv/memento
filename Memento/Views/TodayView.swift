@@ -32,7 +32,7 @@ struct TodayView: View {
                 HStack(alignment: .firstTextBaseline) {
                     Text(CzFormat.dayHeading(timer.now).capitalized(with: CzFormat.locale)).font(.title2.bold())
                     Spacer()
-                    Label(CzFormat.hours(seconds: workedSeconds(entries)), systemImage: "clock")
+                    Label("Odpracováno dnes: \(CzFormat.hours(seconds: workedSeconds(entries)))", systemImage: "clock")
                         .font(.title3.bold()).monospacedDigit()
                 }
                 planCard(entries)
@@ -95,7 +95,7 @@ struct TodayView: View {
                 }
                 if forecast.verdict != .reached, required > 0 {
                     ProgressView(value: Double(workedToday), total: Double(max(planned, 1)))
-                    Text("Dnes odpracováno \(CzFormat.hours(seconds: workedToday)) z plánovaných \(CzFormat.hours(seconds: planned)).")
+                    Text("Odpracováno dnes \(CzFormat.hours(seconds: workedToday)) z denního plánu \(CzFormat.hours(seconds: planned)).")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 if required > forecast.todayCapacitySeconds, forecast.todayCapacitySeconds > 0 {
@@ -110,7 +110,7 @@ struct TodayView: View {
 
     private func headline(_ forecast: TargetForecast, required: Int) -> String {
         if forecast.verdict == .reached { return "cíl splněn" }
-        if required > 0 { return "ještě \(CzFormat.hours(seconds: required))" }
+        if required > 0 { return "dnes zbývá \(CzFormat.hours(seconds: required))" }
         if forecast.workDaysLeft == 0 { return "do konce měsíce už není pracovní doba" }
         return "dnes mimo pracovní dobu"
     }
