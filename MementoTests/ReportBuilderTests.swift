@@ -23,6 +23,26 @@ final class ReportBuilderTests: XCTestCase {
                       month: month, rounding: rounding, entries: entries)
     }
 
+    func testContinuedEntriesMergeIntoOneRow() {
+        let r = report([
+            ReportEntry(note: "a", start: date(2026, 10, 5, 8, 33), end: date(2026, 10, 5, 16, 33)),
+            ReportEntry(note: "a", start: date(2026, 10, 5, 16, 34), end: date(2026, 10, 5, 16, 38), continuesPrevious: true),
+            ReportEntry(note: "b", start: date(2026, 10, 6, 9), end: date(2026, 10, 6, 10)),
+        ], rounding: .fifteen)
+        XCTAssertEqual(r.rows.count, 2)
+        XCTAssertEqual(r.rows[0].start, date(2026, 10, 5, 8, 33))
+        XCTAssertEqual(r.rows[0].end, date(2026, 10, 5, 16, 38))
+        // 8 h + 4 min = 8 h 4 min → po zaokrouhlení jednou na 8 h 15 min
+        XCTAssertEqual(r.rows[0].seconds, 8 * 3600 + 15 * 60)
+    }
+
+    func testContinuationWithoutPredecessorInMonthStaysSeparate() {
+        let r = report([
+            ReportEntry(note: "a", start: date(2026, 10, 1, 9), end: date(2026, 10, 1, 10), continuesPrevious: true),
+        ])
+        XCTAssertEqual(r.rows.count, 1)
+    }
+
     func testHoursAndAmount() {
         let r = report([
             entry(date(2026, 10, 5, 8), date(2026, 10, 5, 12, 30)),

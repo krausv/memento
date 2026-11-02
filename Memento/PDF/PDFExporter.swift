@@ -50,7 +50,7 @@ enum PDFExporter {
         for project in projects {
             let entries = project.entries.compactMap { entry -> ReportEntry? in
                 guard let end = entry.end else { return nil }
-                return ReportEntry(note: entry.note, start: entry.start, end: end)
+                return ReportEntry(note: entry.note, start: entry.start, end: end, continuesPrevious: entry.carriedSeconds > 0)
             }
             let report = ReportBuilder().build(
                 projectName: project.name, client: project.client, currency: project.currency,

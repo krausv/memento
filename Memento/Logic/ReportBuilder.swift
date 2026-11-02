@@ -63,6 +63,8 @@ struct ReportEntry: Equatable {
     var note: String?
     var start: Date
     var end: Date
+    /// Záznam vznikl navázáním (Pokračovat) na předchozí; ve výkazu se s ním sloučí do jednoho řádku.
+    var continuesPrevious = false
 }
 
 struct Report: Equatable {
@@ -103,18 +105,31 @@ struct ReportBuilder {
         rounding: RoundingOption,
         entries: [ReportEntry]
     ) -> Report {
-        let rows = entries
-            .filter { month.contains($0.start, calendar: calendar) }
-            .sorted { $0.start < $1.start }
-            .map { entry -> Report.Row in
-                let raw = max(0, Int(entry.end.timeIntervalSince(entry.start).rounded()))
-                return Report.Row(
-                    start: entry.start,
-                    end: entry.end,
-                    note: entry.note,
-                    seconds: rounding.apply(toSeconds: raw)
-                )
+        // Navázané záznamy (stejná poznámka, jen přerušené měření) se ve výkazu ukážou jako jeden řádek:
+        // od začátku prvního do konce posledního, délka je součet skutečně odpracovaného času.
+        struct Group {
+            var start: Date
+            var end: Date
+            var note: String?
+            var raw: Int
+        }
+        var groups: [Group] = []
+        for entry in entries
+            .filter({ month.contains($0.start, calendar: calendar) })
+            .sorted(by: { $0.start < $1.start }) {
+            let raw = max(0, Int(entry.end.timeIntervalSince(entry.start).rounded()))
+            if entry.continuesPrevious, var last = groups.last, last.end <= entry.start {
+                last.end = max(last.end, entry.end)
+                last.raw += raw
+                if let note = entry.note, !note.isEmpty { last.note = note }
+                groups[groups.count - 1] = last
+            } else {
+                groups.append(Group(start: entry.start, end: entry.end, note: entry.note, raw: raw))
             }
+        }
+        let rows = groups.map {
+            Report.Row(start: $0.start, end: $0.end, note: $0.note, seconds: rounding.apply(toSeconds: $0.raw))
+        }
 
         let total = rows.reduce(0) { $0 + $1.seconds }
         let amount = (Decimal(total) * hourlyRate / 3600).rounded(scale: 2)
