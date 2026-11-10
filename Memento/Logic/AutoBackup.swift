@@ -3,11 +3,23 @@ import Foundation
 import SwiftData
 
 enum AutoBackupFrequency: String, Codable, CaseIterable, Identifiable {
-    case daily, weekly
+    case hourly, daily, weekly
 
     var id: String { rawValue }
-    var title: String { self == .daily ? "Denně" : "Týdně" }
-    var interval: TimeInterval { self == .daily ? 24 * 3600 : 7 * 24 * 3600 }
+    var title: String {
+        switch self {
+        case .hourly: "Každou hodinu"
+        case .daily: "Denně"
+        case .weekly: "Týdně"
+        }
+    }
+    var interval: TimeInterval {
+        switch self {
+        case .hourly: 3600
+        case .daily: 24 * 3600
+        case .weekly: 7 * 24 * 3600
+        }
+    }
 }
 
 /// Nastavení je jen místní (cesta ke složce nedává smysl na jiném Macu), proto není součástí zálohy.
