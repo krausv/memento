@@ -12,6 +12,7 @@ enum SettingsKey {
     static let autoBackupError = "autoBackupError"
     static let palette = "colorPalette"
     static let checkForUpdates = "checkForUpdates"
+    static let resolveGitHubIssues = "resolveGitHubIssues"
 }
 
 enum AppSettings {

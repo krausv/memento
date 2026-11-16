@@ -141,7 +141,7 @@ struct TodayView: View {
                     VStack(alignment: .leading) {
                         Text(group.project?.name ?? "—")
                         if let note = group.note, !note.isEmpty {
-                            Text(note).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                            Text(NoteText.attributed(note)).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                         }
                         TagChips(tags: group.tags)
                     }

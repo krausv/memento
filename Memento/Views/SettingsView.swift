@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Environment(TimerController.self) private var timer
     @Environment(UpdateStore.self) private var updates
     @AppStorage(SettingsKey.checkForUpdates) private var checkForUpdates = true
+    @AppStorage(SettingsKey.resolveGitHubIssues) private var resolveGitHubIssues = true
     @AppStorage(SettingsKey.rounding) private var roundingMinutes = RoundingOption.none.rawValue
     @AppStorage(SettingsKey.supplierName) private var supplierName = ""
     @AppStorage(SettingsKey.supplierIco) private var supplierIco = ""
@@ -63,6 +64,11 @@ struct SettingsView: View {
                 }
             }
             autoBackupSection
+            Section("Poznámky") {
+                Toggle("Doplňovat názvy GitHub issue k odkazům", isOn: $resolveGitHubIssues)
+                Text("Vyžaduje přihlášené GitHub CLI (gh). Odkaz v poznámce se po uložení nahradí odkazem „GH: Název (repo#123)“.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             updatesSection
             Section("Systém") {
                 Toggle("Spustit při přihlášení", isOn: $launchAtLogin)

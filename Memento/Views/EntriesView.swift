@@ -133,7 +133,7 @@ struct EntriesView: View {
             VStack(alignment: .leading) {
                 Text(group.project?.name ?? "—")
                 if let note = group.note, !note.isEmpty {
-                    Text(note).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                    Text(NoteText.attributed(note)).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                 }
                 TagChips(tags: group.tags)
             }
@@ -240,7 +240,9 @@ struct EntryForm: View {
             return
         }
         let cleanedNote = BulletText.clean(note)
+        let saved: TimeEntry
         if let entry {
+            saved = entry
             entry.project = project
             entry.start = start
             entry.end = end
@@ -250,8 +252,10 @@ struct EntryForm: View {
             let created = TimeEntry(project: project, start: start, end: end, note: cleanedNote)
             context.insert(created)
             created.tags = tags
+            saved = created
         }
         try? context.save()
+        NoteLinker.resolve(saved)
         dismiss()
     }
 }
@@ -306,6 +310,7 @@ struct NoteForm: View {
         entry.note = BulletText.clean(note)
         entry.tags = tags
         try? context.save()
+        NoteLinker.resolve(entry)
         dismiss()
     }
 }

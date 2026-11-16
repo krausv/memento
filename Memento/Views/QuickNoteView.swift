@@ -75,6 +75,7 @@ struct QuickNoteView: View {
         entry.note = BulletText.clean(note)
         entry.tags = tags
         try? context.save()
+        NoteLinker.resolve(entry)
         close()
     }
 }

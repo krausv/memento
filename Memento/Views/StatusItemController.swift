@@ -144,7 +144,7 @@ final class StatusItemController: NSObject {
 
     /// „Projekt – první řádek poznámky“, zkrácené, aby menu nebylo široké.
     private static func summary(of entry: TimeEntry, in project: Project) -> String {
-        let firstLine = entry.note?.components(separatedBy: .newlines).first?
+        let firstLine = NoteText.plain(entry.note)?.components(separatedBy: .newlines).first?
             .replacingOccurrences(of: BulletText.marker, with: "")
             .trimmingCharacters(in: .whitespaces) ?? ""
         let text = firstLine.isEmpty ? project.name : "\(project.name) – \(firstLine)"
